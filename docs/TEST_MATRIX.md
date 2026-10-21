@@ -18,10 +18,12 @@ Each required test from the brief (page 4, "Automated tests") mapped to the beha
 
 | Behavior | File |
 |---|---|
-| Missing or foreign `Origin` on a write returns 403 | `apps/api/test/security.origin.spec.ts` |
-| A request that skips the web proxy (no proxy secret) returns 403 | `apps/api/test/security.proxy.spec.ts` |
-| Login throttling returns the same 429 for unknown and real emails | `apps/api/test/auth.throttle.spec.ts` |
+| Missing or foreign `Origin` on a write returns 403; a request that skips the web proxy returns 403; login throttling returns the same 429 for unknown and real emails | `apps/api/test/security.spec.ts` |
+| Create/edit write the right audit rows; list filters, stable sort and page bounds | `apps/api/test/items.crud.spec.ts` |
+| The proxy forwards `Origin` unchanged, overwrites `X-Forwarded-For`, adds the proxy secret, relays `Set-Cookie`, drops other headers, answers 503 when the API is down | `apps/web/test/proxy.spec.ts` |
+| Inbox: skeleton rows, load error with request reference and Try again, role-specific and filtered empty states | `apps/web/test/inbox.spec.tsx` |
 | `next` redirect only accepts same-origin paths | `apps/web/test/safe-next.spec.ts` |
+| Double-clicking Create sends one request | `apps/web/test/item-form.spec.tsx` |
 
 ## Verifying the tests catch regressions
 

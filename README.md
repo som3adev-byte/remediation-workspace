@@ -14,6 +14,7 @@ Times are local (UTC+3). The brief caps the work at 8 hours including documentat
 | 2026-10-21 10:02 | 10:11 | Auth | login/logout, JWT verify (alg, iss, aud, exp), server sessions with revocation, disabled users, throttling, Origin + proxy-secret guards, error filter, redacted logs. 35 API tests green. |
 | 2026-10-21 10:11 | 10:14 | Items | list (status/overdue filters, bounded pages, stable sort, scoped count), detail, activity, create, edit, reassign; one scope function + RLS; guarded single UPDATE with version; org-scoped active assignee (422); audit rows in the same transaction. 52 API tests green. |
 | 2026-10-21 10:14 | 10:20 | Workflow | four transitions as one guarded UPDATE each (org, version, status, assignee rule); 404/403/409 explained after a miss; completion note kept on request-changes, reason in the audit row; tests 7 and 8 incl. concurrent approvals; guard-removal check. 65 API tests green. |
+| 2026-10-21 10:20 | 10:35 | UI | Next.js proxy route, login, inbox split view with filters/pagination/all states, detail with actions and activity, item form with 409 banner and draft restore, session-expired dialog, responsive layouts. Web dev port moved to 3100 (3000 was taken locally). 87 tests green (65 API + 22 web). |
 
 ## Do the tests catch regressions?
 

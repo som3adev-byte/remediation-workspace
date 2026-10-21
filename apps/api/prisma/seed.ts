@@ -109,13 +109,15 @@ async function main() {
             createdById: manager,
           },
         });
+        // One transaction means one now(); give each step its own time so history reads in order.
+        const at = (step: number) => new Date(Date.now() - (4 - step) * 3 * 60 * 60 * 1000);
         await tx.auditEvent.create({
-          data: { orgId: org.id, itemId: item.id, actorId: manager, action: 'CREATED', changes: { title: spec.title } },
+          data: { orgId: org.id, itemId: item.id, actorId: manager, action: 'CREATED', changes: { title: spec.title }, createdAt: at(0) },
         });
-        for (const action of STATUS_HISTORY[spec.status]) {
+        for (const [i, action] of STATUS_HISTORY[spec.status].entries()) {
           const actorId = action === 'APPROVED' ? reviewer : assigneeId;
           const changes = action === 'SUBMITTED' ? { completionNote: spec.completionNote } : {};
-          await tx.auditEvent.create({ data: { orgId: org.id, itemId: item.id, actorId, action, changes } });
+          await tx.auditEvent.create({ data: { orgId: org.id, itemId: item.id, actorId, action, changes, createdAt: at(i + 1) } });
         }
       }
     });

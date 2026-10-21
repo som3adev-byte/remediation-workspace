@@ -1,0 +1,93 @@
+'use client';
+
+import { loginSchema } from '@rw/shared';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
+import { api, ApiFailure } from '@/lib/api';
+import { keepOnlyDraftsOf } from '@/lib/drafts';
+import { safeNext } from '@/lib/safe-next';
+import type { Me } from '@/lib/types';
+import { ShieldIcon } from './icons';
+import { Banner, Button, Field } from './ui';
+
+export function LoginForm() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [error, setError] = useState<ApiFailure | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      const f: Record<string, string> = {};
+      for (const issue of parsed.error.issues) f[String(issue.path[0])] ??= issue.message;
+      setFields(f);
+      return;
+    }
+    setFields({});
+    setError(null);
+    setBusy(true);
+    try {
+      await api('/auth/login', { method: 'POST', body: parsed.data });
+      const me = await api<Me>('/auth/me');
+      keepOnlyDraftsOf(me.id);
+      router.replace(safeNext(params.get('next'), window.location.origin));
+    } catch (err) {
+      setError(err instanceof ApiFailure ? err : new ApiFailure(0, 'internal_error', 'Something went wrong. Try again.'));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="login-card">
+      <div className="brand">
+        <ShieldIcon className="brand-mark" width={28} height={28} />
+        <span className="brand-name">Remediation Workspace</span>
+      </div>
+      <h1 className="heading">Sign in</h1>
+      {params.get('expired') === '1' && !error && (
+        <Banner tone="info">Your session expired. Sign in again to continue where you left off.</Banner>
+      )}
+      {error && (
+        <Banner tone="error" reference={error.status >= 500 ? error.requestId : undefined}>
+          {error.message}
+        </Banner>
+      )}
+      <form onSubmit={submit} noValidate className="stack">
+        <Field label="Email" error={fields.email}>
+          {(p) => (
+            <input
+              {...p}
+              className="input"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+            />
+          )}
+        </Field>
+        <Field label="Password" error={fields.password}>
+          {(p) => (
+            <input
+              {...p}
+              className="input"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          )}
+        </Field>
+        <Button type="submit" loading={busy} loadingLabel="Signing in…" className="btn-block">
+          Sign in
+        </Button>
+      </form>
+    </div>
+  );
+}

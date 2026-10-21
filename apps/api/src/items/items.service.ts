@@ -119,7 +119,7 @@ export class ItemsService {
   async create(actor: Actor, input: CreateItemInput) {
     if (actor.role !== 'MANAGER') throw Errors.forbidden();
     return withActor(this.prisma, actor, async (tx) => {
-      await this.assertAssignable(tx, actor, input.assigneeId);
+      const assignee = await this.assertAssignable(tx, actor, input.assigneeId);
       const item = await tx.item.create({
         data: {
           orgId: actor.orgId, // from the session, never from the request
@@ -133,7 +133,7 @@ export class ItemsService {
       });
       await this.audit(tx, actor, item.id, 'CREATED', {
         title: input.title,
-        assigneeId: input.assigneeId,
+        assignee,
         dueDate: input.dueDate,
       });
       return present(item, await todayUtc(tx));
@@ -152,7 +152,7 @@ export class ItemsService {
       if (actor.role !== 'MANAGER') throw Errors.forbidden();
 
       const reassigning = input.assigneeId !== undefined && input.assigneeId !== current.assigneeId;
-      if (reassigning) await this.assertAssignable(tx, actor, input.assigneeId!);
+      const newAssignee = reassigning ? await this.assertAssignable(tx, actor, input.assigneeId!) : null;
 
       const data: Prisma.ItemUpdateManyMutationInput & { assigneeId?: string } = { version: { increment: 1 } };
       const edits: Record<string, { from: unknown; to: unknown }> = {};
@@ -183,9 +183,9 @@ export class ItemsService {
 
       if (Object.keys(edits).length > 0) await this.audit(tx, actor, id, 'EDITED', edits as Prisma.InputJsonValue);
       if (reassigning) {
-        await this.audit(tx, actor, id, 'REASSIGNED', {
-          assigneeId: { from: current.assigneeId, to: input.assigneeId },
-        });
+        // Names are snapshotted so the history reads correctly even if a name changes later.
+        const previous = await tx.user.findUnique({ where: { id: current.assigneeId }, select: { id: true, name: true } });
+        await this.audit(tx, actor, id, 'REASSIGNED', { assignee: { from: previous, to: newAssignee } });
       }
       const updated = await tx.item.findFirstOrThrow({ where: { id, ...itemScope(actor) }, select: itemSelect });
       return present(updated, await todayUtc(tx));
@@ -265,9 +265,10 @@ export class ItemsService {
   private async assertAssignable(tx: Tx, actor: Actor, assigneeId: string) {
     const user = await tx.user.findFirst({
       where: { id: assigneeId, orgId: actor.orgId, disabledAt: null },
-      select: { id: true },
+      select: { id: true, name: true },
     });
     if (!user) throw Errors.invalidAssignee();
+    return user;
   }
 
   /** Audit rows are written only here, in the same transaction as the change they describe. */
