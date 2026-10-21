@@ -134,7 +134,7 @@ describe('item form', () => {
     // Same user signs back in: the form comes back filled.
     const again = renderAs(manager, <ItemForm mode="create" />);
     expect(await screen.findByDisplayValue('Patch nginx')).toBeInTheDocument();
-    expect(screen.getByText(/We restored the changes/)).toBeInTheDocument();
+    expect(screen.getByText(/unsaved changes from before you signed in again/)).toBeInTheDocument();
     again.unmount();
 
     // A different user signs in on this tab: other users' drafts are deleted and nothing is shown.
@@ -142,6 +142,6 @@ describe('item form', () => {
     expect(sessionStorage.getItem(`draft:${manager.id}:new`)).toBeNull();
     renderAs(otherManager, <ItemForm mode="create" />);
     expect(await screen.findByLabelText('Title')).toHaveValue('');
-    expect(screen.queryByText(/We restored the changes/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unsaved changes from before you signed in again/)).not.toBeInTheDocument();
   });
 });

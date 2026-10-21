@@ -224,7 +224,7 @@ export function ItemForm(props: Props) {
 
   return (
     <FormPage title={title} crumb={item ? formatRef(item.ref) : 'New'}>
-      {restored && <Banner tone="info">We restored the changes you hadn&apos;t saved before signing in again.</Banner>}
+      {restored && <Banner tone="info">Your unsaved changes from before you signed in again are restored.</Banner>}
       {bannerText && (
         <Banner
           tone={conflict ? 'warning' : 'error'}
