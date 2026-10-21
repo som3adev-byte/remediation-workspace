@@ -152,6 +152,16 @@ Times are local (UTC+3). The brief allows eight hours including documentation.
 
 Run after the build, against the running app and the source.
 
+| Check | Tool | What it covered | Result |
+|---|---|---|---|
+| Independent security review | A separate security-auditor agent with no build context | Source audit plus live attacks on the running app (list below) | 1 Low fixed (`413` mapping), CSP + HSTS added |
+| Third-party pentest | [Strix](https://github.com/usestrix/strix) 1.6, standard mode, source + live app as anonymous, manager and member | 40 areas, active exploitation included | 1 Medium in code (open redirect) fixed; 4 dev-dependency advisories fixed |
+| Static analysis | Semgrep (run by Strix) | 84 source files | 0 issues |
+| Secrets | Gitleaks, TruffleHog (run by Strix), plus a manual scan of the git history | Every commit | 0 secrets |
+| Dependencies | `pnpm audit --prod`, Trivy (run by Strix) | Production and dev dependencies in `pnpm-lock.yaml` | Production: 5 transitive advisories pinned to patched versions. Dev: Vitest upgraded. Both clean now |
+| Code review | Two independent reviews: a pre-landing checklist and a correctness-only pass | Whole codebase | 15 real findings fixed, each with a failing-first test (see Final code review) |
+| Regression proof | Removing each guard and running the suite | Every authorization and concurrency guard | Every guard is caught by a test (see "Do the tests catch regressions?") |
+
 - **Independent review.** A separate agent with no context from the build session audited the code and attacked the running app. It tried cross-org and same-org IDOR, mass assignment and `__proto__` keys, JWT tampering (`alg: none`, stripped and altered signatures), CSRF (missing, `null` and foreign `Origin`), direct calls that skip the proxy, proxy path traversal, open redirects through `next` (one encoded variant was missed; Strix found it later, below), self-review, access after reassignment and after logout, account enumeration, throttling, oversized pages, XSS sinks and RLS gaps. All of these were blocked. It found no Critical, High or Medium issues.
 - **Fixed from that review:** an oversized request body returned `500` instead of `413` (now mapped, with a test), and a Content-Security-Policy plus production HSTS were added.
 - **Accepted and documented:** the shared per-IP login counter behind the local proxy (Known limitations).
