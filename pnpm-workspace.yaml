@@ -8,3 +8,8 @@ allowBuilds:
   argon2: true
   esbuild: true
   prisma: true
+# Patched transitive versions (pnpm audit). postcss is build-time only inside next;
+# deepmerge-ts is used by the Prisma CLI config loader. Neither sees user input.
+overrides:
+  postcss: '>=8.5.23'
+  deepmerge-ts: '>=8.0.0'
