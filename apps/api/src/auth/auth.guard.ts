@@ -1,6 +1,7 @@
 import { type CanActivate, type ExecutionContext, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
+import { AppError } from '../common/errors';
 import { AUTH } from '../config/env';
 import { AuthService } from './auth.service';
 import { clearSessionCookie, setSessionCookie } from './cookies';
@@ -24,7 +25,8 @@ export class AuthGuard implements CanActivate {
       if (reissuedToken) setSessionCookie(res, reissuedToken);
       return true;
     } catch (err) {
-      clearSessionCookie(res);
+      // Only a rejected session clears the cookie. A database hiccup (503) must not sign everyone out.
+      if (err instanceof AppError && err.status === 401) clearSessionCookie(res);
       throw err;
     }
   }

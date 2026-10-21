@@ -76,4 +76,14 @@ describe('inbox states', () => {
     expect(screen.getByRole('radio', { name: 'Closed' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Overdue only' })).toBeChecked();
   });
+
+  it('a page past the end says so and links back to page 1, instead of the empty-workspace message', async () => {
+    search = new URLSearchParams('page=5');
+    mockApi({ 'GET /items': () => ({ status: 200, body: { items: [], total: 3, page: 5, pageSize: 20 } }) });
+    renderAs(manager, <Inbox>{null}</Inbox>);
+    expect(await screen.findByText('No items on this page')).toBeInTheDocument();
+    expect(screen.queryByText('No remediation items yet')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to page 1' })).toHaveAttribute('href', '/items');
+    expect(screen.queryByText(/of 3/)).not.toBeInTheDocument();
+  });
 });

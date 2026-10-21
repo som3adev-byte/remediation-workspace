@@ -10,6 +10,35 @@ import type { NextRequest } from 'next/server';
  */
 const FORWARD_REQUEST = ['content-type', 'cookie', 'origin', 'accept'];
 const FORWARD_RESPONSE = ['content-type', 'x-request-id', 'cache-control'];
+// The API accepts 32 KB; the proxy refuses anything well above that before buffering it.
+const MAX_BODY = 64 * 1024;
+const tooLarge = () => Response.json({ code: 'validation_failed', message: 'Request body too large.' }, { status: 413 });
+
+/** Reads the body up to MAX_BODY bytes; null means it was larger. */
+async function readCapped(req: NextRequest): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return null;
+  if (!req.body) return new Uint8Array();
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
+}
 
 // Route handlers have no trustworthy socket address. Locally every request comes from
 // this machine, so the API's per-IP login limit is shared (documented in the README).
@@ -29,12 +58,19 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   headers.set('x-forwarded-for', CLIENT_IP);
   headers.set('x-internal-proxy-secret', process.env.PROXY_SECRET ?? '');
 
+  let payload: Uint8Array<ArrayBuffer> | undefined;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    const read = await readCapped(req);
+    if (read === null) return tooLarge();
+    payload = read;
+  }
+
   let upstream: Response;
   try {
     upstream = await fetch(target, {
       method: req.method,
       headers,
-      body: req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer(),
+      body: payload,
       redirect: 'manual',
       cache: 'no-store',
     });

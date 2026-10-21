@@ -24,7 +24,7 @@ export function Inbox({ children }: { children: ReactNode }) {
 
   const status = (STATUSES as readonly string[]).includes(params.get('status') ?? '') ? (params.get('status') as Status) : null;
   const overdue = params.get('overdue') === 'true';
-  const page = Math.max(1, Number(params.get('page')) || 1);
+  const page = Math.max(1, Number.parseInt(params.get('page') ?? '', 10) || 1);
   const query = params.toString();
   const filtered = Boolean(status || overdue);
 
@@ -63,7 +63,7 @@ export function Inbox({ children }: { children: ReactNode }) {
     if (selectedId) lastOpened.current = selectedId;
     if (!selectedId) {
       const id = lastOpened.current;
-      if (id) document.querySelector<HTMLElement>(`[data-row-id="${id}"]`)?.focus();
+      if (id) document.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(id)}"]`)?.focus();
       return;
     }
     const onKey = (e: KeyboardEvent) => {
@@ -186,7 +186,15 @@ export function Inbox({ children }: { children: ReactNode }) {
 
           {data && data.items.length === 0 && (
             <div className="empty">
-              {filtered ? (
+              {data.total > 0 ? (
+                <>
+                  <h2 className="heading">No items on this page</h2>
+                  <p>The list is shorter now. Items may have been closed or reassigned.</p>
+                  <Link href={pageHref(1)} className="btn btn-secondary">
+                    Go to page 1
+                  </Link>
+                </>
+              ) : filtered ? (
                 <>
                   <h2 className="heading">No items match these filters</h2>
                   <p>Try another status or turn off Overdue only.</p>
@@ -235,7 +243,7 @@ export function Inbox({ children }: { children: ReactNode }) {
             </ul>
           )}
 
-          {data && data.total > 0 && (
+          {data && data.items.length > 0 && (
             <div className="pager">
               <span className="mono">
                 {(data.page - 1) * data.pageSize + 1}–{Math.min(data.page * data.pageSize, data.total)} of {data.total}

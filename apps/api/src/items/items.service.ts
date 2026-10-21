@@ -170,6 +170,16 @@ export class ItemsService {
       }
       if (reassigning) data.assigneeId = input.assigneeId;
 
+      // Nothing actually changes: write nothing, so other editors don't get a false conflict.
+      // The usual rules still apply: an item that can't be edited, or a stale view, is refused.
+      if (Object.keys(edits).length === 0 && !reassigning) {
+        if (current.version !== input.version || !EDITABLE_STATUSES.includes(current.status)) {
+          throw this.explainUpdateMiss(current);
+        }
+        const same = await tx.item.findFirstOrThrow({ where: { id, ...itemScope(actor) }, select: itemSelect });
+        return present(same, await todayUtc(tx));
+      }
+
       const result = await tx.item.updateMany({
         where: {
           id,
@@ -179,7 +189,7 @@ export class ItemsService {
         },
         data,
       });
-      if (result.count !== 1) throw this.explainUpdateMiss(current, input.version);
+      if (result.count !== 1) throw this.explainUpdateMiss(current);
 
       if (Object.keys(edits).length > 0) await this.audit(tx, actor, id, 'EDITED', edits as Prisma.InputJsonValue);
       if (reassigning) {
@@ -222,7 +232,7 @@ export class ItemsService {
         });
         count = result.count;
       }
-      if (count !== 1) throw await this.explainTransitionMiss(tx, actor, id, action, input.version);
+      if (count !== 1) throw await this.explainTransitionMiss(tx, actor, id, action);
 
       const changes: Record<string, unknown> = { status: { from: t.from, to: t.to } };
       if (action === 'submit') changes.completionNote = input.completionNote;
@@ -235,7 +245,7 @@ export class ItemsService {
   }
 
   /** After a guarded transition matched nothing: re-read in scope and say why, most private reason first. */
-  private async explainTransitionMiss(tx: Tx, actor: Actor, id: string, action: TransitionAction, version: number) {
+  private async explainTransitionMiss(tx: Tx, actor: Actor, id: string, action: TransitionAction) {
     const item = await tx.item.findFirst({ where: { id, ...itemScope(actor) } });
     if (!item) return Errors.notFound();
     const t = TRANSITIONS[action];
@@ -249,15 +259,14 @@ export class ItemsService {
       );
     }
     if (item.status !== t.from) return Errors.invalidTransition();
-    if (item.version !== version) return Errors.conflict();
+    // Stale version, or a concurrent request changed it after our UPDATE matched nothing.
     return Errors.conflict();
   }
 
   /** Why a guarded update matched no row, using the state we read before it. */
-  private explainUpdateMiss(current: Item, clientVersion: number) {
+  private explainUpdateMiss(current: Item) {
     if (!EDITABLE_STATUSES.includes(current.status)) return Errors.invalidTransition();
-    if (current.version !== clientVersion) return Errors.conflict();
-    // The row changed between our read and our write (a concurrent request won).
+    // Stale version, or the row changed between our read and our write (a concurrent request won).
     return Errors.conflict();
   }
 
@@ -272,7 +281,7 @@ export class ItemsService {
   }
 
   /** Audit rows are written only here, in the same transaction as the change they describe. */
-  async audit(tx: Tx, actor: Actor, itemId: string, action: AuditAction, changes: Prisma.InputJsonValue) {
+  private async audit(tx: Tx, actor: Actor, itemId: string, action: AuditAction, changes: Prisma.InputJsonValue) {
     await tx.auditEvent.create({ data: { orgId: actor.orgId, itemId, actorId: actor.userId, action, changes } });
   }
 }

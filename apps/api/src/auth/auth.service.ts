@@ -32,15 +32,17 @@ export class AuthService {
    */
   async login(input: LoginInput, ip: string): Promise<{ token: string }> {
     const emailKey = input.email; // already trimmed + lowercased by loginSchema
-    if (await this.throttle.isBlocked(emailKey, ip)) throw Errors.rateLimited();
+    const attempt = await this.throttle.begin(emailKey, ip);
+    if (attempt.blocked) {
+      await this.throttle.release(attempt.attemptId);
+      throw Errors.rateLimited();
+    }
 
     const user = await this.prisma.user.findUnique({ where: { email: emailKey } });
     const valid = await argon2.verify(user?.passwordHash ?? (await this.dummyHash), input.password);
-    if (!user || !valid || user.disabledAt) {
-      await this.throttle.recordFailure(emailKey, ip);
-      throw Errors.invalidCredentials();
-    }
+    if (!user || !valid || user.disabledAt) throw Errors.invalidCredentials(); // the attempt row stays: it is the failure
 
+    await this.throttle.release(attempt.attemptId);
     await this.throttle.clearEmail(emailKey);
     const session = await this.prisma.session.create({
       data: { userId: user.id, expiresAt: new Date(Date.now() + AUTH.sessionTtlSeconds * 1000) },

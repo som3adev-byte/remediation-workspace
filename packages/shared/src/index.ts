@@ -116,6 +116,8 @@ const trimmed = (max: number, label: string) =>
     .max(max, `${label} must be ${max.toLocaleString('en-US')} characters or fewer.`);
 
 const uuid = z.string().uuid('Invalid id.');
+/** The version the client rendered. Capped at Postgres int4 so an absurd value is a 400, not a 500. */
+const version = z.number().int().positive().max(2_147_483_647);
 
 export const loginSchema = z
   .object({
@@ -138,7 +140,7 @@ export type CreateItemInput = z.infer<typeof createItemSchema>;
 /** Edit and reassign. `version` is the version the client rendered (optimistic concurrency). */
 export const updateItemSchema = z
   .object({
-    version: z.number().int().positive(),
+    version,
     title: trimmed(LIMITS.title, 'Title').optional(),
     description: trimmed(LIMITS.description, 'Description').optional(),
     assigneeId: uuid.optional(),
@@ -151,13 +153,13 @@ export const updateItemSchema = z
   );
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 
-export const startSchema = z.object({ version: z.number().int().positive() }).strict();
+export const startSchema = z.object({ version }).strict();
 export const submitSchema = z
-  .object({ version: z.number().int().positive(), completionNote: trimmed(LIMITS.completionNote, 'Completion note') })
+  .object({ version, completionNote: trimmed(LIMITS.completionNote, 'Completion note') })
   .strict();
-export const approveSchema = z.object({ version: z.number().int().positive() }).strict();
+export const approveSchema = z.object({ version }).strict();
 export const requestChangesSchema = z
-  .object({ version: z.number().int().positive(), reason: trimmed(LIMITS.reason, 'Reason') })
+  .object({ version, reason: trimmed(LIMITS.reason, 'Reason') })
   .strict();
 
 export const TRANSITION_SCHEMAS = {

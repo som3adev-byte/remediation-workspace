@@ -89,4 +89,23 @@ describe('items: create, edit, list', () => {
   it('a malformed id is a plain 404', async () => {
     expect((await http(app).get('/items/not-a-uuid').set(as(managerA))).status).toBe(404);
   });
+
+  it('rejects a version beyond the int4 range with 400, not 500', async () => {
+    const item = await createItem(f.orgA, { assigneeId: f.users.memberA.id, createdById: f.users.managerA.id });
+    const edit = await http(app).patch(`/items/${item.id}`).set(as(managerA)).send({ version: 3_000_000_000, title: 'x' });
+    expect(edit.status).toBe(400);
+    const start = await http(app).post(`/items/${item.id}/transitions/start`).set(as(managerA)).send({ version: 99_999_999_999 });
+    expect(start.status).toBe(400);
+  });
+
+  it('an edit that changes nothing writes nothing (no version bump, no audit row)', async () => {
+    const item = await createItem(f.orgA, { assigneeId: f.users.memberA.id, createdById: f.users.managerA.id });
+    const res = await http(app)
+      .patch(`/items/${item.id}`)
+      .set(as(managerA))
+      .send({ version: 1, title: 'Rotate leaked key', assigneeId: f.users.memberA.id });
+    expect(res.status).toBe(200);
+    expect(res.body.version).toBe(1);
+    expect(await auditFor(item.id)).toHaveLength(0);
+  });
 });

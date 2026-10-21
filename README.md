@@ -46,8 +46,8 @@ Each org has items in every status, including overdue ones. A quick tour: sign i
 
 ```bash
 pnpm test                         # all: API (real Postgres) then web
-pnpm --filter @rw/api test        # API only: 65 tests on the remediation_test database
-pnpm --filter @rw/web test        # web only: 22 tests (jsdom + Testing Library)
+pnpm --filter @rw/api test        # API only: 70 tests on the remediation_test database
+pnpm --filter @rw/web test        # web only: 26 tests (jsdom + Testing Library)
 pnpm typecheck
 ```
 
@@ -101,7 +101,7 @@ pnpm typecheck
 
 ## Known limitations
 
-- **Per-IP login limit is shared locally.** Next.js route handlers have no trustworthy client address, so the proxy sends `127.0.0.1` for everyone and all local users share one 20-per-15-minutes counter. In production the load balancer's client-IP header must be used instead. The per-email limit is unaffected.
+- **Per-IP login limit is shared locally.** Next.js route handlers have no trustworthy client address, so the proxy sends `127.0.0.1` for everyone and all local users share one 20-per-15-minutes counter: 20 failed sign-ins from anyone lock every local user out for 15 minutes. In production the load balancer's client-IP header must be used instead. The per-email limit is unaffected.
 - **Per-email lockout can be triggered by someone else**: 5 wrong passwords lock that email for 15 minutes. Accepted tradeoff for a demo; production would add CAPTCHA or progressive delays.
 - **The Content-Security-Policy allows inline scripts.** It blocks external script hosts, cross-origin requests, framing, plugins, `<base>` and cross-origin form posts, but Next.js injects inline bootstrap scripts, so `script-src` has `'unsafe-inline'` until a per-request nonce is added. Fonts load from Fontshare and Google Fonts (allowed by name). HSTS is sent in production builds only.
 - **Item numbers (`RW-0013`) come from one global sequence**, so the gaps hint at how many items other orgs created. Per-org numbering would fix that.
@@ -141,8 +141,10 @@ Times are local (UTC+3). The brief allows eight hours including documentation.
 | 2026-10-21 10:36 | 10:44 | Review | Walked through the app as manager and member; added a show/hide password toggle; fixed a hydration warning caused by a browser extension. |
 | 2026-10-21 10:44 | 10:47 | Documentation | This README, the architecture note and the handoff. |
 | 2026-10-21 10:47 | 11:19 | UI review + security review | Accessibility, motion and contrast passes (WCAG AA tokens), Phosphor icons; independent security review (see below), dependency audit, fixes. |
+| 2026-10-21 14:24 | 14:45 | Strix scan | Third-party scan of the source and the running app; see Security review. |
+| 2026-10-21 14:48 | 15:03 | Final review | Two independent code reviews (a checklist-driven reviewer and a correctness review). Fixed: a race that let parallel sign-in attempts bypass the per-email limit, an out-of-range version returning 500, other body-parser errors returning 500, no-op edits bumping the version, a database hiccup clearing session cookies, unsaved completion notes on session expiry, an unbounded body in the proxy, the past-the-end inbox page, storage errors in drafts. Each fix has a test that failed first. 96 tests green (70 API + 26 web). |
 
-**Total: about 4 h 30 min** (planning about 3 h, build and documentation 09:52 to 11:19), within the 8-hour limit.
+**Total: about 5 h 10 min**: planning about 3 h, build and documentation 09:52 to 11:19, the Strix scan about 20 min, and the final review about 20 min. Within the 8-hour limit.
 
 
 ## Security review
@@ -172,7 +174,7 @@ I built this with **Claude Code** (Anthropic's coding agent) as the main tool, u
 
 I am responsible for everything here. How I checked the generated work:
 
-- **Every security rule has a failing-first proof.** After the suite was green, I removed each guard on its own and confirmed tests failed (table below). One result surprised me: removing `org_id` from the app's scope broke **no** tests, because RLS still hid other orgs' rows. I then disabled RLS on the test database to prove each layer independently: RLS off with the scope intact passes all API tests; both off fails 8 tests.
+- **Every security rule has a failing-first proof.** After the suite was green, I removed each guard on its own and confirmed tests failed (table below). One result surprised me: removing `org_id` from the app's scope broke **no** tests, because RLS still hid other orgs' rows. I then disabled RLS on the test database to prove each layer independently: RLS off with the scope intact fails only the 4 RLS tests, while every API authorization test still passes; both off fails 8 tests.
 - **RLS checked directly in `psql` as the runtime role**: no rows without `app.org_id`, only the current org's rows with it, the setting gone after commit, `DELETE` on audit rows denied.
 - **Concurrency checked against real Postgres**, not mocks: two simultaneous approvals run 5 times per test run, and each time I assert one 200, one 409 and exactly one audit row.
 - **The proxy checked end to end with `curl`**: cookie flags, `403` for missing or foreign `Origin`, `403` for direct calls to the API, the request id relayed, and the old cookie refused after logout.

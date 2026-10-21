@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiFailure, notifyItemsChanged } from '@/lib/api';
+import { clearDraft, readDraft, saveDraft } from '@/lib/drafts';
 import { formatTimestamp } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import type { ActivityEvent, Item } from '@/lib/types';
@@ -41,11 +42,19 @@ export function ItemDetail({ id }: { id: string }) {
       const [i, a] = await Promise.all([api<Item>(`/items/${id}`), api<ActivityEvent[]>(`/items/${id}/activity`)]);
       setItem(i);
       setActivity(a);
-      setNote((n) => n || i.completionNote || '');
+      // Text typed before a session expiry comes back for the same user.
+      const draft = readDraft<{ note: string; reason: string; reasonOpen: boolean }>(me.id, `${id}:review`);
+      if (draft) {
+        setNote(draft.note);
+        setReason(draft.reason);
+        setReasonOpen(draft.reasonOpen);
+      } else {
+        setNote((n) => n || i.completionNote || '');
+      }
     } catch (err) {
       setLoadError(err as ApiFailure);
     }
-  }, [id]);
+  }, [id, me.id]);
 
   useEffect(() => {
     void load();
@@ -65,13 +74,17 @@ export function ItemDetail({ id }: { id: string }) {
     try {
       const updated = await api<Item>(`/items/${item.id}/transitions/${action}`, { method: 'POST', body });
       setItem(updated);
+      clearDraft(me.id, `${item.id}:review`);
       setReason('');
       setReasonOpen(false);
       toast(SUCCESS[action](formatRef(updated.ref)));
       notifyItemsChanged();
       setActivity(await api<ActivityEvent[]>(`/items/${item.id}/activity`).catch(() => activity));
     } catch (err) {
-      setActionError(err as ApiFailure);
+      const failure = err as ApiFailure;
+      // The shell shows "session expired"; keep what was typed for after sign-in.
+      if (failure.status === 401) saveDraft(me.id, `${item.id}:review`, { note, reason, reasonOpen });
+      setActionError(failure);
     } finally {
       setPending(null);
     }

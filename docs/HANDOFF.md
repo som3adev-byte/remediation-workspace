@@ -53,5 +53,8 @@ For the next engineer. Read the README's quick start and session lifecycle first
 
 ## Open items
 
-- Security scan (Strix) and its fixes. Planned next, not done yet.
-- The README's "Known limitations" and "Next three priorities" are the honest list of what is missing. The most important are the shared per-IP login counter behind the proxy, no CSP yet, and no automated browser tests.
+The README's "Known limitations" and "Next three priorities" are the honest list of what is missing. The most important:
+- The per-IP login counter is shared behind the local proxy. Production needs the load balancer's client IP.
+- The Content-Security-Policy still allows inline scripts. A per-request nonce would remove that.
+- There are no automated browser end-to-end tests. The main flows were checked by hand.
+- A full third-party scan (Strix) with an API key. The subscription run was stopped by the provider's guardrails before its active phase.

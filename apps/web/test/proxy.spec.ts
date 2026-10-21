@@ -59,4 +59,15 @@ describe('API proxy route', () => {
     expect(res.status).toBe(503);
     expect((await res.json()).code).toBe('service_unavailable');
   });
+
+  it('refuses an oversized body with 413 before reading it', async () => {
+    const req = new NextRequest('http://localhost:3100/api/items', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'content-length': String(5 * 1024 * 1024) },
+      body: '{}',
+    });
+    const res = await POST(req, ctx(['items']));
+    expect(res.status).toBe(413);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
 });

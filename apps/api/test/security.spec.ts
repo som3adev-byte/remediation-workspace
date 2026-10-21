@@ -76,4 +76,26 @@ describe('origin, proxy and throttling', () => {
     expect(res.status).toBe(413);
     expect(res.body.code).toBe('validation_failed');
   });
+
+  it('holds the per-email limit under a burst of parallel wrong passwords', async () => {
+    // Each request comes from its own IP so only the per-email limit is in play.
+    const email = 'burst.target@test.dev';
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, k) =>
+        http(app).post('/auth/login').set(viaProxy(`198.51.100.${k + 1}`)).send({ email, password: 'wrong-password' }),
+      ),
+    );
+    const statuses = results.map((r) => r.status);
+    expect(statuses.filter((s) => s === 401).length).toBeLessThanOrEqual(5);
+    expect(statuses.filter((s) => s === 429).length).toBeGreaterThanOrEqual(15);
+  });
+
+  it('maps other body-parser client errors to their 4xx, not 500', async () => {
+    const res = await http(app)
+      .post('/auth/login')
+      .set({ ...viaProxy('203.0.113.77'), 'content-type': 'application/json; charset=latin9' })
+      .send('{"email":"a@b.test","password":"x"}');
+    expect(res.status).toBe(415);
+    expect(res.body.code).toBe('validation_failed');
+  });
 });

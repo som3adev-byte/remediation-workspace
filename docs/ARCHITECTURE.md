@@ -45,7 +45,7 @@ Browser ──(HttpOnly cookie, same origin)──> Next.js /api/[...path] ─�
 
 **Logout** sets `revoked_at` on the session and clears the cookie. A copy of the old token is useless from then on, because the session check fails, even though the token's signature and `exp` are still valid. Disabling a user works the same way: the next request fails.
 
-**Throttling.** 5 failures per email and 20 per IP in 15 minutes. The email key counts whether or not the account exists, so the limit does not reveal accounts. Every throttled answer is the same `429`.
+**Throttling.** 5 failures per email and 20 per IP in 15 minutes. The email key counts whether or not the account exists, so the limit does not reveal accounts. Every throttled answer is the same `429`. Each attempt records its row before it counts, so a burst of parallel requests cannot slip past the limit.
 
 **Authorization boundaries, from outside in:**
 
@@ -110,7 +110,7 @@ A manager's "All statuses" view sorts across statuses. At seed and test size thi
 2. **Keyset pagination** (`WHERE (due_date, id) > ($last)`) instead of OFFSET for deep pages. Cap or estimate counts for very large orgs, or cache them briefly.
 3. **An index for the unfiltered manager sort** `(org_id, due_date, id)`, added only if plans show sorts on large orgs.
 4. **A read replica** for inbox and history reads, if the primary is CPU-bound by reads. Writes and the session check stay on the primary.
-5. **Several API instances** behind a load balancer. The API is stateless apart from Postgres. The per-IP login limit then needs the real client IP from the balancer (section 6 of the README).
+5. **Several API instances** behind a load balancer. The API is stateless apart from Postgres. The per-IP login limit then needs the real client IP from the balancer (see Known limitations in the README).
 6. **Partition `audit_events`** by time if it grows much faster than items. It is append-only, so this is easy.
 
 Sharding by org is not needed at this size; `org_id` leads every index, so it stays possible later.

@@ -38,12 +38,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (typeof err === 'object' && err !== null && (err as { type?: unknown }).type === 'entity.too.large') {
       return [413, { code: 'validation_failed', message: 'Request body too large.' }];
     }
+    // Other body-parser client errors (bad charset 415, malformed encoding 400) carry
+    // `expose: true` and a 4xx status. They are the client's fault, never a 500.
+    const bp = err as { expose?: unknown; status?: unknown };
+    if (typeof err === 'object' && err !== null && bp.expose === true && typeof bp.status === 'number' && bp.status >= 400 && bp.status < 500) {
+      return [bp.status, { code: 'validation_failed', message: 'Malformed request.' }];
+    }
     if (err instanceof HttpException) {
       const status = err.getStatus();
       if (status === 404) return [404, { code: 'not_found', message: 'Not found.' }];
       if (status === 413) return [413, { code: 'validation_failed', message: 'Request body too large.' }];
       if (status === 400) return [400, { code: 'validation_failed', message: 'Malformed request.' }];
-      if (status < 500) return [status, { code: 'forbidden', message: 'Request not allowed.' }];
+      if (status === 403) return [403, { code: 'forbidden', message: 'Request not allowed.' }];
+      if (status < 500) return [status, { code: 'validation_failed', message: 'Request not accepted.' }];
     }
     return [500, { code: 'internal_error', message: 'Something went wrong. Try again.' }];
   }
