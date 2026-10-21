@@ -4,6 +4,8 @@ Organizations assign security remediation work to their people, track progress, 
 
 **Stack:** TypeScript · Next.js 15 (web) · NestJS 11 on Express (API) · Prisma 6 · PostgreSQL 16 · Vitest.
 
+**[Watch the 2-minute walkthrough video](https://drive.google.com/file/d/1d1H-0rQhBsLObpaWV6eNfr7Vr2hPQsAT/view?usp=sharing)**: what the app does and why it is safe, in plain language.
+
 - [Architecture note](docs/ARCHITECTURE.md): structure, auth, authorization, concurrency, indexes, scaling, operations.
 - [Handoff for the next engineer](docs/HANDOFF.md)
 - [Test matrix](docs/TEST_MATRIX.md): each of the brief's nine required tests mapped to its file.
@@ -203,7 +205,7 @@ I built this with **Claude Code** (Anthropic's coding agent) as the main tool, u
 
 - **Review skills used inside Claude Code:** gstack (office-hours, plan-ceo-review, plan-eng-review, plan-design-review, design-consultation) for the plan, and impeccable, web-design-guidelines and emil-design-eng for the UI audits.
 - **Security:** a separate security-auditor agent for the independent review, and Strix for the third-party scan (see Security review).
-- **Presentation film:** a short presentation film of the app, outside this repository and not part of the submission, made with Remotion, a local open-source voice (Kokoro) and real screenshots.
+- **Walkthrough video** (linked at the top): made with Remotion, a local open-source voice (Kokoro) and real screenshots.
 
 I am responsible for everything here. How I checked the generated work:
 
