@@ -6,6 +6,7 @@ import { AllExceptionsFilter } from './common/exception.filter';
 import { OriginGuard } from './common/guards/origin.guard';
 import { ProxySecretGuard } from './common/guards/proxy-secret.guard';
 import { DbModule } from './db/db.module';
+import { ItemsModule } from './items/items.module';
 
 /**
  * Guards run in this order on every request:
@@ -14,7 +15,7 @@ import { DbModule } from './db/db.module';
  *   3. AuthGuard:        valid JWT + live session + active user (unless @Public)
  */
 @Module({
-  imports: [DbModule, AuthModule],
+  imports: [DbModule, AuthModule, ItemsModule],
   providers: [
     { provide: APP_GUARD, useClass: ProxySecretGuard },
     { provide: APP_GUARD, useClass: OriginGuard },
