@@ -1141,6 +1141,29 @@ textarea {
   .btn {
     min-height: 44px;
   }
+  /* 16px stops iOS Safari from zooming the page when a field gets focus; 44px is the minimum touch target. */
+  .input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .input-with-action .input {
+    min-height: 52px;
+  }
+  .input-action {
+    top: 4px;
+    bottom: 4px;
+    min-width: 44px;
+  }
+  .crumbs a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 8px; /* wider hit area, same look */
+    margin: 0 -8px;
+  }
+  .skip-link {
+    padding: 12px 16px;
+  }
   .detail,
   .form-panel,
   .login-card {
