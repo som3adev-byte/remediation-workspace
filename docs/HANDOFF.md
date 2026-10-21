@@ -32,6 +32,7 @@ For the next engineer. Read the README's quick start and session lifecycle first
 - **New request bodies get a `.strict()` schema** in `packages/shared`. Never read `orgId`, `actorId` or `role` from a request.
 - **Answer 404 for anything outside the actor's scope**, including malformed ids (`ItemIdPipe`).
 - **Don't log bodies, notes, titles, cookies or tokens.** Log ids and the request id.
+- **Counters that limit something must write before they read.** The login throttle inserts the attempt, then counts (`ThrottleService.begin`). Checking first and recording after lets a parallel burst through; `security.spec.ts` sends 20 attempts at once to keep it honest.
 
 ## Gotchas
 

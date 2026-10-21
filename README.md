@@ -164,6 +164,30 @@ Run after the build, against the running app and the source.
   - Live attack-surface mapping as anonymous, manager and member: no issues.
 - **Not covered by a third-party tool:** the active exploitation pass. The independent review above covered it. A full third-party run with an API key is on the list before production.
 
+## Final code review
+
+Before submission the whole codebase was reviewed twice, independently: once against a pre-landing review checklist (correctness, security, test gaps, doc drift), once as a correctness-only review. Together they raised 16 findings; 15 were real.
+
+Every bug fix started with a test that failed on the old code, so each one is proven, not assumed:
+
+| Finding | Fix | Test |
+|---|---|---|
+| **Login throttle race:** 30 parallel wrong passwords for one email were all checked; none got `429` | Each attempt writes its row before counting, so the n-th attempt always sees n rows and at most 5 pass, with no lock | `security.spec.ts`: 20 parallel attempts, at most 5 reach the password check |
+| A `version` above the int4 range returned `500` | One shared `version` schema capped at 2,147,483,647, so it is a `400` | `items.crud.spec.ts` |
+| A request with an unsupported charset returned `500` | Body-parser client errors keep their own 4xx status | `security.spec.ts` (`415`) |
+| An edit that changed nothing bumped the version, so other editors got a false `409` | Nothing is written when nothing changes | `items.crud.spec.ts` |
+| A short database outage cleared every session cookie | The cookie is cleared only when the session is really rejected (`401`) | code path in `auth.guard.ts` |
+| The completion note or reason was lost when the session expired on the detail page | Saved as a same-user draft and restored after sign-in | `item-detail.spec.tsx` |
+| The proxy buffered request bodies of any size | Refuses anything over 64 KB before reading it (`413`) | `proxy.spec.ts` |
+| A page number past the end showed "No remediation items yet" and a broken range | "No items on this page" with a link to page 1; the page must be an integer | `inbox.spec.tsx` |
+| Blocked browser storage turned a successful save or sign-in into an error | Draft storage calls never throw | `drafts.spec.ts` |
+
+Also fixed: two dead branches, an unused module export, a public method documented as internal, an unescaped id in a CSS selector, and doc drift (test counts, a stale handoff list, a wrong route name).
+
+**Not changed, already documented as limitations:** the shared per-IP login counter behind the local proxy, and item numbers from one global sequence.
+
+**Rejected after checking:** one finding said the tracked `.gitignore` names agent tooling. It does not: those entries live only in the local `.git/info/exclude`.
+
 ## How AI was used
 
 I built this with **Claude Code** (Anthropic's coding agent) as the main tool, using it for planning reviews, implementation, tests and browser checks. Before writing code, I used review skills for structured passes over the plan: scope, architecture, design and test coverage. **Kling** (image generation) produced the UI mockups that `DESIGN.md` was written from. Agent configuration and planning transcripts are not in this repository; the decisions they produced are recorded here, in `DESIGN.md` and in `docs/ARCHITECTURE.md`.
@@ -185,6 +209,8 @@ I am responsible for everything here. How I checked the generated work:
 - The first plan used Next.js rewrites for the proxy. Rewrites don't guarantee how `Origin`, `X-Forwarded-For` and `Set-Cookie` are passed on, so I replaced them with an explicit route handler and a test per header.
 - The straightforward way to write the transitions, checking permissions in code *before* the UPDATE, was rejected. With that check in place, deleting a WHERE condition would change nothing and the guard-removal check would prove nothing. The UPDATE's own WHERE makes the decision, and the code only explains a miss afterwards.
 - The generated mockups set sentences in a monospace font and marked the selected row with a colored left border. I kept monospace for ids, dates and counts only, and used a background tint for selection.
+- The final review found a race in the generated login throttle (parallel attempts slipped past the limit). The original tests only sent attempts one at a time, so they could not see it. I reproduced it with a parallel test before fixing it (see Final code review).
+- One final-review finding was wrong (it said `.gitignore` lists agent tooling); I checked the tracked file and rejected it.
 - A reviewer suggested dropping the per-IP login limit because it is shared locally. I kept it and documented the limitation, since it is the only limit that slows one client trying many emails.
 
 ### Do the tests catch regressions?
