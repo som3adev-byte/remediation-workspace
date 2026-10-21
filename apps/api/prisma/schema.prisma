@@ -104,10 +104,12 @@ model Item {
   createdBy   User         @relation("creator", fields: [createdById], references: [id])
   auditEvents AuditEvent[]
 
-  // Manager inbox: org + optional status, ordered by due date then id.
+  // Inbox filtered by status (manager, then member), ordered by due date then id.
   @@index([orgId, status, dueDate, id])
-  // Member inbox: org + assignee + optional status.
   @@index([orgId, assigneeId, status, dueDate, id])
+  // Default inbox with no status filter, and the overdue filter (a range on due_date).
+  @@index([orgId, dueDate, id])
+  @@index([orgId, assigneeId, dueDate, id])
   @@map("items")
 }
 
@@ -138,5 +140,7 @@ model LoginAttempt {
 
   @@index([emailKey, createdAt])
   @@index([ip, createdAt])
+  // Pruning rows older than the window on each sign-in.
+  @@index([createdAt])
   @@map("login_attempts")
 }

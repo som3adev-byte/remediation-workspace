@@ -11,7 +11,7 @@ apps/api         NestJS 11 on Express, Prisma 6, PostgreSQL 16
   src/auth/                    login, logout, token verify, sessions, throttling, guards
   src/items/                   scope, list/detail/activity, create/edit/reassign, workflow transitions
   src/common/                  errors, error filter, request id + access log, validation pipe, origin/proxy guards
-  prisma/                      schema, 3 migrations (tables, RLS policies + grants, least privilege), seed
+  prisma/                      schema, 4 migrations (tables, RLS policies + grants, least privilege, inbox and throttle indexes), seed
 packages/shared  zod request schemas (.strict()), the transition table, limits, labels. Used by both apps.
 ```
 
@@ -82,15 +82,17 @@ The audit row records actor, timestamp, action and changes: `{field: {from, to}}
 
 | Index | Query |
 |---|---|
-| `items (org_id, status, due_date, id)` | Manager inbox filtered by status, ordered by due date then id. Overdue (`due_date < today`) is a range on the same index. Count uses the same WHERE. |
-| `items (org_id, assignee_id, status, due_date, id)` | Member inbox: the same queries narrowed to one assignee. |
+| `items (org_id, status, due_date, id)` | Manager inbox filtered by status, already in due date then id order. Count uses the same WHERE. |
+| `items (org_id, due_date, id)` | Manager inbox with no status filter (the default view), in index order. Overdue (`due_date < today`, not Closed) is a range on `due_date` with status checked per row. |
+| `items (org_id, assignee_id, status, due_date, id)`, `items (org_id, assignee_id, due_date, id)` | Member inbox: the same two queries narrowed to one assignee. |
 | `items.ref` unique | Display reference. |
 | `audit_events (org_id, item_id, created_at)` | Activity history for one item, newest first. |
 | `sessions (user_id)` + primary key | Session check on every request (primary key); per-user lookups. |
 | `users.email` unique, `users (org_id, role)` | Sign-in lookup; assignee list for a manager's org. |
 | `login_attempts (email_key, created_at)`, `(ip, created_at)` | Throttle counts inside the window. |
+| `login_attempts (created_at)` | Pruning rows older than the window on each sign-in. |
 
-A manager's "All statuses" view sorts across statuses. At seed and test size this is an in-memory sort of one org's rows. At larger sizes, `items (org_id, due_date, id)` would serve it directly (section 5).
+Checked with `EXPLAIN`: with these indexes no inbox query needs a sort step once the table is large enough for Postgres to prefer the index. At seed size it may still choose a scan and a small in-memory sort.
 
 ## 5. Growing to 500 orgs, 5 million items, bursts of 100 updates/second
 
@@ -108,7 +110,7 @@ A manager's "All statuses" view sorts across statuses. At seed and test size thi
 **Likely changes, in the order I would expect to need them:**
 1. **Connection pooling** (PgBouncer in transaction mode). `SET LOCAL`/`set_config(..., true)` is transaction-scoped, so RLS keeps working with transaction pooling.
 2. **Keyset pagination** (`WHERE (due_date, id) > ($last)`) instead of OFFSET for deep pages. Cap or estimate counts for very large orgs, or cache them briefly.
-3. **An index for the unfiltered manager sort** `(org_id, due_date, id)`, added only if plans show sorts on large orgs.
+3. **Fewer item indexes, if writes become the bottleneck.** Items have four inbox indexes; each update maintains them. Measure write latency before merging or dropping any.
 4. **A read replica** for inbox and history reads, if the primary is CPU-bound by reads. Writes and the session check stay on the primary.
 5. **Several API instances** behind a load balancer. The API is stateless apart from Postgres. The per-IP login limit then needs the real client IP from the balancer (see Known limitations in the README).
 6. **Partition `audit_events`** by time if it grows much faster than items. It is append-only, so this is easy.
