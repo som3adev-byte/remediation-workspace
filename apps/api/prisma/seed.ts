@@ -61,6 +61,7 @@ const ORGS = [
       { title: 'Rotate database credentials after contractor offboarding', description: 'A contractor with database access left. Rotate the shared credentials and update secrets.', assignee: 'maya@globex.test', dueInDays: 3, status: 'OPEN' },
       { title: 'Apply kernel updates on bastions', description: 'Bastion hosts are two kernel releases behind. Patch and reboot during the maintenance window.', assignee: 'alex@globex.test', dueInDays: 6, status: 'PENDING_REVIEW', completionNote: 'Patched both bastions to the latest kernel and rebooted in the Sunday window.' },
       { title: 'Turn on audit logging for the admin console', description: 'Admin console actions are not logged. Enable audit logging and ship logs to the SIEM.', assignee: 'maya@globex.test', dueInDays: 9, status: 'OPEN' },
+      { title: 'Disable legacy TLS 1.0 on the VPN gateway', description: 'The VPN gateway still accepts TLS 1.0 and 1.1. Allow TLS 1.2+ only.', assignee: 'maya@globex.test', dueInDays: -5, status: 'CLOSED', completionNote: 'Gateway profile now TLS 1.2+; verified with testssl.sh, no client complaints.' },
     ] satisfies ItemSpec[],
   },
 ];
