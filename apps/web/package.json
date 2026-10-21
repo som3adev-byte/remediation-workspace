@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@rw/shared": "workspace:*",
     "next": "^15.5.28",
     "react": "^19.3.1",

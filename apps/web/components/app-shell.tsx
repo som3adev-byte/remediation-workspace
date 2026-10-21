@@ -136,7 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="shell" inert={expired || undefined}>
           <aside className="sidebar">
             <div className="brand">
-              <ShieldIcon className="brand-mark" width={28} height={28} />
+              <ShieldIcon className="brand-mark" size={28} />
               <div>
                 <div className="brand-name" translate="no">
                   Remediation Workspace
@@ -148,7 +148,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </aside>
           <header className="topbar">
             <div className="brand">
-              <ShieldIcon className="brand-mark" width={24} height={24} />
+              <ShieldIcon className="brand-mark" size={24} />
               <span className="brand-name" translate="no">
                 Remediation Workspace
               </span>

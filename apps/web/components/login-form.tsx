@@ -55,7 +55,7 @@ export function LoginForm() {
   return (
     <div className="login-card">
       <div className="brand">
-        <ShieldIcon className="brand-mark" width={28} height={28} />
+        <ShieldIcon className="brand-mark" size={28} />
         <span className="brand-name">Remediation Workspace</span>
       </div>
       <h1 className="heading">Sign in</h1>
