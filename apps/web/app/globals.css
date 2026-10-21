@@ -489,6 +489,15 @@ textarea {
   align-self: flex-start;
   margin-top: 8px;
 }
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dialog-actions .btn {
+  margin-top: 0;
+}
 
 /* ---------- Skeleton ---------- */
 .skeleton {

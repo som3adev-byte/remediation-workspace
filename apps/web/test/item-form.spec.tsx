@@ -115,6 +115,33 @@ describe('item form', () => {
     expect(calls.find((c) => c.key.startsWith('PATCH'))?.body).toEqual({ title: 'Rotate key and purge history', version: 3 });
   });
 
+  it('"Reload latest" asks before replacing typed changes, and keeps them on cancel', async () => {
+    let reads = 0;
+    const LATEST = { ...ITEM, title: 'Rotated by Omar', version: 4 };
+    mockApi({
+      'GET /items/assignees': () => ({ status: 200, body: PEOPLE }),
+      [`GET /items/${ITEM.id}`]: () => ({ status: 200, body: reads++ === 0 ? ITEM : LATEST }),
+      [`PATCH /items/${ITEM.id}`]: () => ({ status: 409, body: { code: 'conflict', message: 'Someone else changed this item.' } }),
+    });
+    renderAs(manager, <ItemForm mode="edit" id={ITEM.id} />);
+    const user = userEvent.setup();
+    const title = await screen.findByLabelText('Title');
+    await user.clear(title);
+    await user.type(title, 'My edit');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await user.click(await screen.findByRole('button', { name: 'Reload latest' }));
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Replace your changes?' });
+    expect(screen.getByRole('button', { name: 'Keep my changes' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Keep my changes' }));
+    expect(dialog).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Title')).toHaveValue('My edit');
+
+    await user.click(screen.getByRole('button', { name: 'Reload latest' }));
+    await user.click(await screen.findByRole('button', { name: 'Replace with latest' }));
+    await waitFor(() => expect(screen.getByLabelText('Title')).toHaveValue('Rotated by Omar'));
+  });
+
   it('on session expiry saves the draft, and restores it only for the same user', async () => {
     const expired = vi.fn();
     window.addEventListener(SESSION_EXPIRED_EVENT, expired);

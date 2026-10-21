@@ -51,6 +51,8 @@ export function ItemForm(props: Props) {
   const inFlight = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [dirty, setDirty] = useState(false);
+  const [confirmReplace, setConfirmReplace] = useState(false);
+  const reloadButton = useRef<HTMLButtonElement>(null);
 
   // After a failed submit, move focus to the first field with an error.
   useEffect(() => {
@@ -160,6 +162,7 @@ export function ItemForm(props: Props) {
       setValues(fromItem(latest));
       setVersion(latest.version);
       setFailure(null);
+      setDirty(false);
       clearDraft(me.id, draftKey);
     } catch (err) {
       setFailure(err as ApiFailure);
@@ -231,7 +234,7 @@ export function ItemForm(props: Props) {
           reference={failure && failure.status >= 500 ? failure.requestId : undefined}
           action={
             conflict ? (
-              <Button variant="secondary" onClick={reloadLatest}>
+              <Button ref={reloadButton} variant="secondary" onClick={() => (dirty ? setConfirmReplace(true) : void reloadLatest())}>
                 Reload latest
               </Button>
             ) : undefined
@@ -239,6 +242,18 @@ export function ItemForm(props: Props) {
         >
           {bannerText}
         </Banner>
+      )}
+      {confirmReplace && (
+        <ConfirmReplaceDialog
+          onKeep={() => {
+            setConfirmReplace(false);
+            reloadButton.current?.focus();
+          }}
+          onReplace={() => {
+            setConfirmReplace(false);
+            void reloadLatest();
+          }}
+        />
       )}
       <form ref={formRef} onSubmit={submit} noValidate aria-label={title}>
         <div className="panel form-panel stack">
@@ -314,6 +329,28 @@ function FormPage({ title, crumb, children }: { title: string; crumb: string | n
       </nav>
       <h1 className="display">{title}</h1>
       {children}
+    </div>
+  );
+}
+
+/** Asked before "Reload latest" throws away what the manager typed. Keeping is the default. */
+function ConfirmReplaceDialog({ onKeep, onReplace }: { onKeep: () => void; onReplace: () => void }) {
+  const keep = useRef<HTMLButtonElement>(null);
+  useEffect(() => keep.current?.focus(), []);
+  return (
+    <div className="scrim" onKeyDown={(e) => e.key === 'Escape' && onKeep()}>
+      <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="replace-title" aria-describedby="replace-body">
+        <h2 id="replace-title" className="heading">
+          Replace your changes?
+        </h2>
+        <p id="replace-body">The latest version will replace what you typed here. This can&apos;t be undone.</p>
+        <div className="dialog-actions">
+          <Button ref={keep} variant="secondary" onClick={onKeep}>
+            Keep my changes
+          </Button>
+          <Button onClick={onReplace}>Replace with latest</Button>
+        </div>
+      </div>
     </div>
   );
 }
