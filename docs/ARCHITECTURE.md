@@ -94,6 +94,19 @@ The audit row records actor, timestamp, action and changes: `{field: {from, to}}
 
 Checked with `EXPLAIN`: with these indexes no inbox query needs a sort step once the table is large enough for Postgres to prefer the index. At seed size it may still choose a scan and a small in-memory sort.
 
+**Measured** on a laptop (Postgres 16 in Docker, 2 GB RAM) with 200,000 items in 20 orgs, the largest org holding 50,000, timed with `EXPLAIN ANALYZE` as the runtime role so RLS applies. Scripts: `apps/api/scripts/perf-seed.sql` and `perf-queries.sql` (test database only).
+
+| Query (largest org) | Plan | Time |
+|---|---|---|
+| Manager inbox, default view, page 1 | Index scan `(org_id, due_date, id)`, no sort | 0.23 ms |
+| Manager inbox, status = Open | Same index, status checked per row | 0.22 ms |
+| Manager inbox, overdue | Range on `due_date` in the same index | 0.04 ms |
+| Member inbox, default view | Index scan `(org_id, assignee_id, due_date, id)` | 0.09 ms |
+| Total count for the default view | Parallel scan of the org's rows | 16 ms |
+| Page 2,000 (`OFFSET 39,980`) | Sort of the whole org, spilling to disk | 38 ms |
+
+The first pages are well under a millisecond. The two costs that grow with an org's size are the exact count and deep OFFSET pages, which is why keyset pagination and a capped or cached count come first in section 5.
+
 ## 5. Growing to 500 orgs, 5 million items, bursts of 100 updates/second
 
 **Assumptions:** about 10,000 items per org on average, a few orgs 10 to 50 times larger. Reads outnumber writes. A burst of 100 updates/second spreads across many orgs and items, not one hot row.
