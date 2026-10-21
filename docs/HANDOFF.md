@@ -59,4 +59,5 @@ The README's "Known limitations" and "Next three priorities" are the honest list
 - The per-IP login counter is shared behind the local proxy. Production needs the load balancer's client IP.
 - The Content-Security-Policy still allows inline scripts. A per-request nonce would remove that.
 - There are no automated browser end-to-end tests. The main flows were checked by hand.
+- Expired `sessions` rows are never deleted; add a scheduled cleanup.
 - Keep dev dependencies current: the Strix scan flagged advisories in the test runner (Vitest), fixed by upgrading.

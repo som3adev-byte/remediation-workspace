@@ -31,6 +31,9 @@ Each required test from the brief (page 4, "Automated tests") mapped to the beha
 | The completion note survives a session expiry on the detail page | `apps/web/test/item-detail.spec.tsx` |
 | Blocked browser storage never breaks saving or signing in | `apps/web/test/drafts.spec.ts` |
 | A page past the end of the inbox says so | `apps/web/test/inbox.spec.tsx` |
+| A database outage keeps the session cookie; a rejected session clears it | `apps/api/test/auth.logout.spec.ts` |
+| Reassignment keeps the status; items under review or closed cannot be reassigned, and nothing is written | `apps/api/test/items.crud.spec.ts` |
+| "Reload latest" asks before replacing typed changes | `apps/web/test/item-form.spec.tsx` |
 
 ## Verifying the tests catch regressions
 
