@@ -11,3 +11,5 @@ coverage/
 
 # local browser-tool snapshots
 .playwright-cli/
+test-results/
+playwright-report/

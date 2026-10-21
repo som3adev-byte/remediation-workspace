@@ -2,13 +2,19 @@
   "name": "remediation-workspace",
   "private": true,
   "packageManager": "pnpm@12.5.1",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build:shared": "pnpm --filter @rw/shared build",
     "db:setup": "pnpm build:shared && pnpm --filter @rw/api db:setup",
     "db:setup:test": "pnpm build:shared && pnpm --filter @rw/api db:setup:test",
     "dev": "pnpm build:shared && pnpm -r --parallel --filter @rw/api --filter @rw/web dev",
     "test": "pnpm build:shared && pnpm --filter @rw/api test && pnpm --filter @rw/web test",
-    "typecheck": "pnpm build:shared && pnpm -r typecheck"
+    "typecheck": "pnpm build:shared && pnpm -r typecheck",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
   }
 }
