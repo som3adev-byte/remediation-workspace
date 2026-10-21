@@ -154,11 +154,21 @@ Run after the build, against the running app and the source.
 - **Accepted and documented:** the shared per-IP login counter behind the local proxy (Known limitations).
 - **Dependencies:** `pnpm audit --prod` reported 5 advisories in transitive packages: `postcss` inside Next.js, used at build time on our own CSS, and `deepmerge-ts` inside the Prisma CLI. Neither receives user input. Both are pinned to patched versions with `pnpm` overrides, and the audit is now clean.
 - **Secrets:** the full git history was scanned. No `.env` value and no credential appears in any commit.
-- **Why not Strix:** I intended to run the Strix scanner, but it needs a separately billed model API key. The independent agent review above replaced it; it is not an external tool, and I'd add a third-party scan before production.
+- **Strix (third-party AI pentest tool), standard scan of the source and the running app.** It ran for 12 minutes before the model provider's content guardrails stopped its active-exploitation phase (subscription models block offensive security traffic). In the areas it completed, it found no issues:
+  - Static analysis (Semgrep on 84 files, Gitleaks and TruffleHog for secrets, Trivy for dependencies and config): 0 vulnerabilities, 0 secrets.
+  - Proxy SSRF, path traversal and header injection: ruled out.
+  - JWT forgery, direct API access and CSRF: ruled out.
+  - IDOR, mass assignment, SQL injection and workflow concurrency: ruled out.
+  - Live attack-surface mapping as anonymous, manager and member: no issues.
+- **Not covered by a third-party tool:** the active exploitation pass. The independent review above covered it. A full third-party run with an API key is on the list before production.
 
 ## How AI was used
 
 I built this with **Claude Code** (Anthropic's coding agent) as the main tool, using it for planning reviews, implementation, tests and browser checks. Before writing code, I used review skills for structured passes over the plan: scope, architecture, design and test coverage. **Kling** (image generation) produced the UI mockups that `DESIGN.md` was written from. Agent configuration and planning transcripts are not in this repository; the decisions they produced are recorded here, in `DESIGN.md` and in `docs/ARCHITECTURE.md`.
+
+- **Review skills used inside Claude Code:** gstack (office-hours, plan-ceo-review, plan-eng-review, plan-design-review, design-consultation) for the plan, and impeccable, web-design-guidelines and emil-design-eng for the UI audits.
+- **Security:** a separate security-auditor agent for the independent review, and Strix for the third-party scan (see Security review).
+- **Presentation film:** a short presentation film of the app, outside this repository and not part of the submission, made with Remotion, a local open-source voice (Kokoro) and real screenshots.
 
 I am responsible for everything here. How I checked the generated work:
 
