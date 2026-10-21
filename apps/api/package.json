@@ -33,6 +33,7 @@
     "@rw/shared": "workspace:*",
     "argon2": "0.45.1",
     "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
     "jose": "6.2.13",
     "pino": "9.14.0",
     "reflect-metadata": "^0.2.2",

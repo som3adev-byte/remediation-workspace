@@ -11,3 +11,4 @@ Times are local (UTC+3). The brief caps the work at 8 hours including documentat
 | Start | End | Phase | Notes |
 |-------|-----|-------|-------|
 | 2026-10-21 09:52 | 10:02 | Foundation | monorepo, Postgres roles, Prisma schema + RLS, shared package, seed, test harness (RLS tests green). Lost ~3 min to a local Docker disk error and a host Postgres already on port 5432 (moved to 55432). |
+| 2026-10-21 10:02 | 10:09 | Auth | login/logout, JWT verify (alg, iss, aud, exp), server sessions with revocation, disabled users, throttling, Origin + proxy-secret guards, error filter, redacted logs. 35 API tests green. |
