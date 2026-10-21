@@ -1,6 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { AuditAction, Item, Prisma } from '@prisma/client';
-import { EDITABLE_STATUSES, LIMITS, type CreateItemInput, type ListQuery, type UpdateItemInput } from '@rw/shared';
+import {
+  EDITABLE_STATUSES,
+  LIMITS,
+  TRANSITIONS,
+  type CreateItemInput,
+  type ListQuery,
+  type TransitionAction,
+  type UpdateItemInput,
+} from '@rw/shared';
 import type { Actor } from '../common/request-context';
 import { Errors } from '../common/errors';
 import type { Tx } from '../db/org-transaction';
@@ -21,6 +29,19 @@ const itemSelect = {
   assignee: { select: { id: true, name: true } },
   createdBy: { select: { id: true, name: true } },
 } satisfies Prisma.ItemSelect;
+
+export interface TransitionInput {
+  version: number;
+  completionNote?: string;
+  reason?: string;
+}
+
+const AUDIT_ACTION: Record<TransitionAction, AuditAction> = {
+  start: 'STARTED',
+  submit: 'SUBMITTED',
+  approve: 'APPROVED',
+  request_changes: 'CHANGES_REQUESTED',
+};
 
 type SelectedItem = Prisma.ItemGetPayload<{ select: typeof itemSelect }>;
 
@@ -169,6 +190,67 @@ export class ItemsService {
       const updated = await tx.item.findFirstOrThrow({ where: { id, ...itemScope(actor) }, select: itemSelect });
       return present(updated, await todayUtc(tx));
     });
+  }
+
+  /**
+   * The four workflow actions. The guarded UPDATE is the decision: it only matches when
+   * the item is in this org, at the version the client saw, in the right status, and the
+   * actor is the assignee (start/submit) or a manager who is not the assignee (reviews).
+   * Two concurrent approvals both target version N; Postgres lets one win and re-checks
+   * the other against version N+1, so it matches nothing and returns 409.
+   */
+  async transition(actor: Actor, id: string, action: TransitionAction, input: TransitionInput) {
+    const t = TRANSITIONS[action];
+    return withActor(this.prisma, actor, async (tx) => {
+      const roleAllowed = t.actor === 'ASSIGNEE' || actor.role === 'MANAGER';
+      let count = 0;
+      if (roleAllowed) {
+        const result = await tx.item.updateMany({
+          where: {
+            id,
+            orgId: actor.orgId,
+            version: input.version,
+            status: t.from,
+            assigneeId: t.actor === 'ASSIGNEE' ? actor.userId : { not: actor.userId },
+          },
+          data: {
+            status: t.to,
+            version: { increment: 1 },
+            ...(action === 'submit' && { completionNote: input.completionNote }),
+            // request_changes keeps the completion note so the assignee can revise it.
+          },
+        });
+        count = result.count;
+      }
+      if (count !== 1) throw await this.explainTransitionMiss(tx, actor, id, action, input.version);
+
+      const changes: Record<string, unknown> = { status: { from: t.from, to: t.to } };
+      if (action === 'submit') changes.completionNote = input.completionNote;
+      if (action === 'request_changes') changes.reason = input.reason;
+      await this.audit(tx, actor, id, AUDIT_ACTION[action], changes as Prisma.InputJsonValue);
+
+      const updated = await tx.item.findFirstOrThrow({ where: { id, ...itemScope(actor) }, select: itemSelect });
+      return present(updated, await todayUtc(tx));
+    });
+  }
+
+  /** After a guarded transition matched nothing: re-read in scope and say why, most private reason first. */
+  private async explainTransitionMiss(tx: Tx, actor: Actor, id: string, action: TransitionAction, version: number) {
+    const item = await tx.item.findFirst({ where: { id, ...itemScope(actor) } });
+    if (!item) return Errors.notFound();
+    const t = TRANSITIONS[action];
+    const allowed =
+      t.actor === 'ASSIGNEE'
+        ? item.assigneeId === actor.userId
+        : actor.role === 'MANAGER' && item.assigneeId !== actor.userId;
+    if (!allowed) {
+      return Errors.forbidden(
+        t.actor === 'ASSIGNEE' ? 'Only the assignee can do that.' : 'A manager other than the assignee must review this item.',
+      );
+    }
+    if (item.status !== t.from) return Errors.invalidTransition();
+    if (item.version !== version) return Errors.conflict();
+    return Errors.conflict();
   }
 
   /** Why a guarded update matched no row, using the state we read before it. */

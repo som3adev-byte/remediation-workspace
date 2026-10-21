@@ -50,6 +50,19 @@ describe('cross-organization access', () => {
     expect(row).toMatchObject({ title: 'Rotate leaked key', assigneeId: f.users.memberA.id, version: 1 });
   });
 
+  it('every transition on another org’s item returns 404', async () => {
+    const memberB = await login(app, f.users.memberB.email);
+    for (const [cookie, action, body] of [
+      [memberB, 'start', { version: 1 }],
+      [memberB, 'submit', { version: 1, completionNote: 'x' }],
+      [managerB, 'approve', { version: 1 }],
+      [managerB, 'request_changes', { version: 1, reason: 'x' }],
+    ] as const) {
+      const res = await http(app).post(`/items/${itemA}/transitions/${action}`).set(as(cookie)).send(body);
+      expect(res.status).toBe(404);
+    }
+  });
+
   it('assigning to a user in another org returns 422 on create and reassign', async () => {
     const create = await http(app)
       .post('/items')

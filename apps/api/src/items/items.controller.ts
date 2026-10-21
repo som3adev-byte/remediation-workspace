@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   createItemSchema,
+  TRANSITION_ACTIONS,
+  TRANSITION_SCHEMAS,
+  type TransitionAction,
   listQuerySchema,
   updateItemSchema,
   type CreateItemInput,
@@ -12,6 +15,7 @@ import type { Actor } from '../common/request-context';
 import { ZodValidationPipe } from '../common/zod.pipe';
 import { ItemsService } from './items.service';
 import { ItemIdPipe } from './item-id.pipe';
+import { Errors } from '../common/errors';
 
 @Controller('items')
 export class ItemsController {
@@ -49,5 +53,20 @@ export class ItemsController {
     @Body(new ZodValidationPipe(updateItemSchema)) body: UpdateItemInput,
   ) {
     return this.items.update(actor, id, body);
+  }
+
+  /** POST /items/:id/transitions/start | submit | approve | request_changes */
+  @Post(':id/transitions/:action')
+  @HttpCode(200)
+  transition(
+    @CurrentActor() actor: Actor,
+    @Param('id', ItemIdPipe) id: string,
+    @Param('action') action: string,
+    @Body() body: unknown,
+  ) {
+    if (!(TRANSITION_ACTIONS as readonly string[]).includes(action)) throw Errors.notFound();
+    const a = action as TransitionAction;
+    const input = new ZodValidationPipe(TRANSITION_SCHEMAS[a]).transform(body);
+    return this.items.transition(actor, id, a, input);
   }
 }

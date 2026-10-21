@@ -48,6 +48,24 @@ describe('same-organization authorization', () => {
     expect((await http(app).get('/items/assignees').set(as(memberA))).status).toBe(403);
   });
 
+  it('a manager cannot review an item assigned to themselves (403)', async () => {
+    const own = await createItem(f.orgA, { assigneeId: f.users.managerA.id, createdById: f.users.manager2A.id, status: 'PENDING_REVIEW' });
+    const approve = await http(app).post(`/items/${own.id}/transitions/approve`).set(as(managerA)).send({ version: 1 });
+    expect(approve.status).toBe(403);
+    const changes = await http(app)
+      .post(`/items/${own.id}/transitions/request_changes`)
+      .set(as(managerA))
+      .send({ version: 1, reason: 'x' });
+    expect(changes.status).toBe(403);
+  });
+
+  it('only the assignee can start or submit; a member cannot review (403)', async () => {
+    const item = await createItem(f.orgA, { assigneeId: f.users.memberA.id, createdById: f.users.managerA.id });
+    expect((await http(app).post(`/items/${item.id}/transitions/start`).set(as(managerA)).send({ version: 1 })).status).toBe(403);
+    const pending = await createItem(f.orgA, { assigneeId: f.users.memberA.id, createdById: f.users.managerA.id, status: 'PENDING_REVIEW' });
+    expect((await http(app).post(`/items/${pending.id}/transitions/approve`).set(as(memberA)).send({ version: 1 })).status).toBe(403);
+  });
+
   it('a reassigned member loses access on their very next request (404)', async () => {
     const item = await createItem(f.orgA, { assigneeId: f.users.memberA.id, createdById: f.users.managerA.id });
     expect((await http(app).get(`/items/${item.id}`).set(as(memberA))).status).toBe(200);
