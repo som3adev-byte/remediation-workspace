@@ -34,7 +34,6 @@ export function ItemDetail({ id }: { id: string }) {
   const [reason, setReason] = useState('');
   const [reasonOpen, setReasonOpen] = useState(false);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -126,14 +125,16 @@ export function ItemDetail({ id }: { id: string }) {
         <BackIcon /> Inbox
       </Link>
       <div className="detail-top">
-        <span className="mono muted">{ref}</span>
+        <span className="mono muted" translate="no">
+          {ref}
+        </span>
         {editable && (
           <Link href={`/items/${item.id}/edit`} className="btn btn-secondary btn-sm">
             Edit
           </Link>
         )}
       </div>
-      <h2 className="detail-title" ref={heading} tabIndex={-1}>
+      <h2 className="detail-title">
         {item.title}
       </h2>
       <StatusBadge status={item.status} />

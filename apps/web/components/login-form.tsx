@@ -2,7 +2,7 @@
 
 import { loginSchema } from '@rw/shared';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiFailure } from '@/lib/api';
 import { keepOnlyDraftsOf } from '@/lib/drafts';
 import { safeNext } from '@/lib/safe-next';
@@ -19,6 +19,13 @@ export function LoginForm() {
   const [error, setError] = useState<ApiFailure | null>(null);
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  // Focus the email field on desktop only; on phones it would pop the keyboard over the page.
+  useEffect(() => {
+    if (window.matchMedia('(pointer: fine)').matches) emailRef.current?.focus();
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -28,6 +35,7 @@ export function LoginForm() {
       const f: Record<string, string> = {};
       for (const issue of parsed.error.issues) f[String(issue.path[0])] ??= issue.message;
       setFields(f);
+      (f.email ? emailRef : passwordRef).current?.focus();
       return;
     }
     setFields({});
@@ -66,10 +74,12 @@ export function LoginForm() {
               {...p}
               className="input"
               type="email"
+              name="email"
               autoComplete="username"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoFocus
+              ref={emailRef}
             />
           )}
         </Field>
@@ -80,6 +90,8 @@ export function LoginForm() {
                 {...p}
                 className="input"
                 type={showPassword ? 'text' : 'password'}
+                name="password"
+                ref={passwordRef}
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

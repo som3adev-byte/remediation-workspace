@@ -52,6 +52,7 @@ describe('item form', () => {
     const title = screen.getByLabelText('Title');
     expect(title).toHaveAttribute('aria-invalid', 'true');
     expect(title).toHaveAccessibleDescription('Title is required.');
+    expect(title).toHaveFocus();
     expect(calls.filter((c) => c.key === 'POST /items')).toHaveLength(0);
   });
 

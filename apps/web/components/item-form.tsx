@@ -49,6 +49,21 @@ export function ItemForm(props: Props) {
   const [restored, setRestored] = useState(false);
   const [saving, setSaving] = useState(false);
   const inFlight = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [dirty, setDirty] = useState(false);
+
+  // After a failed submit, move focus to the first field with an error.
+  useEffect(() => {
+    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [fields]);
+
+  // Warn before closing or reloading the tab with unsaved input.
+  useEffect(() => {
+    if (!dirty || saving) return;
+    const onLeave = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [dirty, saving]);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -79,6 +94,7 @@ export function ItemForm(props: Props) {
 
   const set = (k: keyof FormValues) => (v: string) => {
     setValues((prev) => ({ ...prev, [k]: v }));
+    setDirty(true);
     if (fields[k]) setFields((f) => ({ ...f, [k]: undefined }));
   };
 
@@ -118,6 +134,7 @@ export function ItemForm(props: Props) {
         body,
       });
       clearDraft(me.id, draftKey);
+      setDirty(false);
       notifyItemsChanged();
       toast(item ? `Saved ${formatRef(saved.ref)}.` : `Created ${formatRef(saved.ref)}.`);
       router.push(`/items/${saved.id}`);
@@ -223,10 +240,10 @@ export function ItemForm(props: Props) {
           {bannerText}
         </Banner>
       )}
-      <form onSubmit={submit} noValidate aria-label={title}>
+      <form ref={formRef} onSubmit={submit} noValidate aria-label={title}>
         <div className="panel form-panel stack">
           <Field label="Title" error={fields.title} count={{ value: values.title.length, max: LIMITS.title }}>
-            {(p) => <input {...p} className="input" value={values.title} onChange={(e) => set('title')(e.target.value)} />}
+            {(p) => <input {...p} name="title" autoComplete="off" className="input" value={values.title} onChange={(e) => set('title')(e.target.value)} />}
           </Field>
           <Field
             label="Description"
@@ -236,6 +253,7 @@ export function ItemForm(props: Props) {
             {(p) => (
               <textarea
                 {...p}
+                name="description"
                 className="input textarea"
                 rows={6}
                 value={values.description}
@@ -245,7 +263,7 @@ export function ItemForm(props: Props) {
           </Field>
           <Field label="Assignee" error={fields.assigneeId}>
             {(p) => (
-              <select {...p} className="input select" value={values.assigneeId} onChange={(e) => set('assigneeId')(e.target.value)}>
+              <select {...p} name="assigneeId" className="input select" value={values.assigneeId} onChange={(e) => set('assigneeId')(e.target.value)}>
                 <option value="">Choose a person</option>
                 {assignees.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -259,6 +277,8 @@ export function ItemForm(props: Props) {
             {(p) => (
               <input
                 {...p}
+                name="dueDate"
+                autoComplete="off"
                 className="input mono"
                 type="date"
                 value={values.dueDate}

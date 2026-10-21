@@ -86,6 +86,13 @@ export function Inbox({ children }: { children: ReactNode }) {
   }
 
   const data = load.state === 'ready' ? load.data : null;
+  const pageHref = (n: number) => {
+    const q = new URLSearchParams(params);
+    if (n <= 1) q.delete('page');
+    else q.set('page', String(n));
+    const s = q.toString();
+    return `${pathname}${s ? `?${s}` : ''}`;
+  };
   const filterSummary = [status ? STATUS_LABELS[status] : 'All', overdue ? 'Overdue only' : null].filter(Boolean).join(' · ');
 
   return (
@@ -183,9 +190,9 @@ export function Inbox({ children }: { children: ReactNode }) {
                 <>
                   <h2 className="heading">No items match these filters</h2>
                   <p>Try another status or turn off Overdue only.</p>
-                  <Button variant="secondary" onClick={() => router.push(pathname)}>
+                  <Link href={pathname} className="btn btn-secondary">
                     Clear filters
-                  </Button>
+                  </Link>
                 </>
               ) : me.role === 'MANAGER' ? (
                 <>
@@ -214,7 +221,7 @@ export function Inbox({ children }: { children: ReactNode }) {
                     aria-current={item.id === selectedId ? 'page' : undefined}
                     data-row-id={item.id}
                   >
-                    <span className="mono row-ref">{formatRef(item.ref)}</span>
+                    <span className="mono row-ref" translate="no">{formatRef(item.ref)}</span>
                     <span className="row-title">{item.title}</span>
                     <span className="row-due">
                       <DueDate date={item.dueDate} overdue={item.overdue} />
@@ -233,18 +240,14 @@ export function Inbox({ children }: { children: ReactNode }) {
               <span className="mono">
                 {(data.page - 1) * data.pageSize + 1}–{Math.min(data.page * data.pageSize, data.total)} of {data.total}
               </span>
-              <div className="pager-buttons">
-                <Button variant="secondary" disabled={data.page <= 1} onClick={() => setParams({ page: String(data.page - 1) })}>
+              <nav className="pager-buttons" aria-label="Pages">
+                <PageLink href={pageHref(data.page - 1)} disabled={data.page <= 1}>
                   Previous
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={data.page * data.pageSize >= data.total}
-                  onClick={() => setParams({ page: String(data.page + 1) })}
-                >
+                </PageLink>
+                <PageLink href={pageHref(data.page + 1)} disabled={data.page * data.pageSize >= data.total}>
                   Next
-                </Button>
-              </div>
+                </PageLink>
+              </nav>
             </div>
           )}
         </div>
@@ -254,5 +257,21 @@ export function Inbox({ children }: { children: ReactNode }) {
         {children}
       </section>
     </div>
+  );
+}
+
+/** Pagination is navigation, so it is a link (Cmd-click and middle-click work); disabled ends are plain text. */
+function PageLink({ href, disabled, children }: { href: string; disabled: boolean; children: ReactNode }) {
+  if (disabled) {
+    return (
+      <span className="btn btn-secondary is-disabled" aria-disabled="true">
+        {children}
+      </span>
+    );
+  }
+  return (
+    <Link href={href} className="btn btn-secondary">
+      {children}
+    </Link>
   );
 }

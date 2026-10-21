@@ -48,6 +48,38 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+a,
+button,
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+}
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 60;
+  padding: 8px 12px;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: var(--r-md);
+  transform: translateY(-200%);
+}
+.skip-link:focus-visible {
+  transform: none;
+}
+.main:focus {
+  outline: none;
 }
 
 h1,
@@ -142,6 +174,10 @@ textarea {
 }
 .btn:active:not(:disabled) {
   transform: scale(0.97);
+}
+.btn.is-disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 .btn:disabled {
   opacity: 0.5;
@@ -283,6 +319,7 @@ textarea {
 }
 .select {
   appearance: none;
+  color: var(--text);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%236B6F76' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -421,6 +458,7 @@ textarea {
 }
 
 .scrim {
+  overscroll-behavior: contain;
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -808,6 +846,7 @@ textarea {
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -966,6 +1005,9 @@ textarea {
 
 /* ---------- Tablet: top bar, detail as its own page ---------- */
 @media (max-width: 1023px) {
+  html {
+    scroll-padding-top: 64px;
+  }
   .shell {
     grid-template-columns: 1fr;
     align-content: start;

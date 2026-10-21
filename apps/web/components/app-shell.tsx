@@ -66,6 +66,19 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
+  // Escape closes the mobile menu and returns focus to its button.
+  const menuButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setMenuOpen(false);
+      menuButton.current?.focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
   async function signOut() {
     setSigningOut(true);
     try {
@@ -117,12 +130,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <SessionContext.Provider value={{ me, inboxCount }}>
       <ToastProvider>
+        <a href="#main" className="skip-link">
+          Skip to content
+        </a>
         <div className="shell" inert={expired || undefined}>
           <aside className="sidebar">
             <div className="brand">
               <ShieldIcon className="brand-mark" width={28} height={28} />
               <div>
-                <div className="brand-name">Remediation Workspace</div>
+                <div className="brand-name" translate="no">
+                  Remediation Workspace
+                </div>
                 <div className="brand-org">{me.org.name}</div>
               </div>
             </div>
@@ -131,9 +149,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <header className="topbar">
             <div className="brand">
               <ShieldIcon className="brand-mark" width={24} height={24} />
-              <span className="brand-name">Remediation Workspace</span>
+              <span className="brand-name" translate="no">
+                Remediation Workspace
+              </span>
             </div>
             <button
+              ref={menuButton}
               type="button"
               className="icon-btn"
               aria-expanded={menuOpen}
@@ -150,7 +171,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             )}
           </header>
-          <main className="main" id="main">
+          <main className="main" id="main" tabIndex={-1}>
             {children}
           </main>
         </div>

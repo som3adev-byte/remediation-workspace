@@ -72,7 +72,7 @@ describe('inbox states', () => {
     search = new URLSearchParams('status=CLOSED&overdue=true');
     renderAs(manager, <Inbox>{null}</Inbox>);
     expect(await screen.findByText('No items match these filters')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Clear filters' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Closed' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Overdue only' })).toBeChecked();
   });
