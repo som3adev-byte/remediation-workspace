@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import './globals.css';
 
@@ -9,7 +10,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#F3F2EF' };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Reading the request makes every page render per request, so each response gets its own CSP nonce.
+  await headers();
   return (
     // Browser extensions add attributes to <html> before React loads; ignore only that tag.
     <html lang="en" suppressHydrationWarning>
