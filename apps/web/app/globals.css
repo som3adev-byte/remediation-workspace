@@ -6,18 +6,24 @@
   --primary-hover: #2a2d34;
   --on-primary: #ffffff;
   --text: #16181d;
-  --text-muted: #6b6f76;
+  --text-muted: #676b72; /* AA 4.5:1 on canvas, tints and selected rows */
   --border: #e3e1dc;
-  --accent: #0e7c66;
+  --accent: #0e7a64; /* AA 4.5:1 as text on accent-tint */
   --accent-tint: #e7f2ef;
   --info: #2f5bd3;
   --info-tint: #eaf0fc;
   --warning: #b7791f;
   --warning-tint: #fbf3e4;
-  --error: #c2412d;
+  --error: #be402c; /* AA 4.5:1 on error-tint and selected rows */
   --error-tint: #fbedea;
   --neutral-tint: #efeeea;
   --row-hover: #fafaf8;
+  --border-strong: #d3d0c9;
+  --toggle-off: #928b7b; /* 3:1 against canvas so the off state is visible */
+  --warning-text: #8a5a12;
+  --warning-border: #efdcb8;
+  --error-border: #f1d1ca;
+  --info-border: #d3def8;
 
   --font-sans: Satoshi, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -255,7 +261,7 @@ textarea {
 }
 .badge-pending_review {
   background: var(--warning-tint);
-  color: #8a5a12; /* darker than --warning for AA contrast on the tint */
+  color: var(--warning-text);
 }
 .badge-closed {
   background: var(--accent-tint);
@@ -395,21 +401,21 @@ textarea {
 }
 .banner-warning {
   background: var(--warning-tint);
-  border-color: #efdcb8;
+  border-color: var(--warning-border);
 }
 .banner-warning .banner-icon {
   color: var(--warning);
 }
 .banner-error {
   background: var(--error-tint);
-  border-color: #f1d1ca;
+  border-color: var(--error-border);
 }
 .banner-error .banner-icon {
   color: var(--error);
 }
 .banner-info {
   background: var(--info-tint);
-  border-color: #d3def8;
+  border-color: var(--info-border);
 }
 .banner-info .banner-icon {
   color: var(--info);
@@ -725,7 +731,7 @@ textarea {
   width: 32px;
   height: 18px;
   border-radius: 9999px;
-  background: #cfccc5;
+  background: var(--toggle-off);
   transition: background-color 150ms ease-out;
 }
 .toggle-track::after {
@@ -1089,7 +1095,7 @@ textarea {
     display: flex;
   }
   .segment {
-    height: 40px;
+    height: 44px;
   }
   .toggle {
     min-height: 44px;
@@ -1154,18 +1160,26 @@ textarea {
   }
 }
 
+/* Reduced motion: no movement, but fades and color changes stay, since they explain state. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 1ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 1ms !important;
-  }
-  /* No slide; the pane only fades. */
   .detail {
-    animation-name: appear !important;
-    animation-duration: 150ms !important;
+    animation-name: appear;
+  }
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+  .toast,
+  .dialog,
+  .mobile-menu {
+    @starting-style {
+      transform: none;
+    }
+  }
+  .skeleton {
+    animation: none;
+  }
+  .toggle-track::after {
+    transition: none;
   }
 }
 
@@ -1176,7 +1190,7 @@ textarea {
   }
   .btn-secondary:hover {
     background: var(--row-hover);
-    border-color: #d3d0c9;
+    border-color: var(--border-strong);
   }
   .row:hover {
     background: var(--row-hover);
@@ -1190,7 +1204,7 @@ textarea {
     color: var(--text);
   }
   .input:hover {
-    border-color: #d3d0c9;
+    border-color: var(--border-strong);
   }
 }
 .row:active {

@@ -7,22 +7,33 @@ colors:
   primary: "#16181D"
   on-primary: "#FFFFFF"
   text: "#16181D"
-  text-muted: "#6B6F76"
+  text-muted: "#676B72"
   border: "#E3E1DC"
-  accent: "#0E7C66"
+  accent: "#0E7A64"
   accent-tint: "#E7F2EF"
   info: "#2F5BD3"
   info-tint: "#EAF0FC"
   warning: "#B7791F"
   warning-tint: "#FBF3E4"
-  error: "#C2412D"
+  error: "#BE402C"
   error-tint: "#FBEDEA"
   neutral-tint: "#EFEEEA"
+  border-strong: "#D3D0C9"
+  toggle-off: "#928B7B"
+  warning-text: "#8A5A12"
+  warning-border: "#EFDCB8"
+  error-border: "#F1D1CA"
+  info-border: "#D3DEF8"
 typography:
   display:
     fontFamily: Satoshi
     fontWeight: 700
     fontSize: 2rem
+    letterSpacing: -0.01em
+  display-mobile:
+    fontFamily: Satoshi
+    fontWeight: 700
+    fontSize: 1.625rem
     letterSpacing: -0.01em
   heading:
     fontFamily: Satoshi
@@ -39,6 +50,20 @@ typography:
     fontWeight: 500
     fontSize: 0.8125rem
     letterSpacing: 0.01em
+  title:
+    fontFamily: Satoshi
+    fontWeight: 700
+    fontSize: 1.5rem
+    letterSpacing: -0.01em
+  subheading:
+    fontFamily: Satoshi
+    fontWeight: 700
+    fontSize: 1rem
+  caption-mono:
+    fontFamily: JetBrains Mono
+    fontWeight: 400
+    fontSize: 0.75rem
+    fontFeature: tnum
   mono:
     fontFamily: JetBrains Mono
     fontWeight: 400
@@ -117,7 +142,8 @@ components:
 - `accent` (verdigris) is focus rings, the active nav item, links, and the Closed status. It is never used as a large fill.
 - Status badges use the tint as background and the full color as text: Open uses `neutral-tint` + `text-muted`, In progress uses `info`, Pending review uses `warning`, Closed uses `accent`.
 - `error` (vermilion) is used for overdue dates and errors, always with a word ("Overdue", an error message), never color alone.
-- Text on `canvas` and `surface` meets WCAG AA. `text-muted` is only for secondary text at 13px or larger.
+- Text on `canvas`, `surface`, every tint and the selected row meets WCAG AA (4.5:1); the values of `text-muted`, `accent` and `error` were darkened slightly to guarantee it. `text-muted` is only for secondary text at 13px or larger.
+- `warning-text` is the Pending review badge text (the `warning` hue darkened for 4.5:1 on its tint). `*-border` tokens outline banners. `border-strong` is the hover border. `toggle-off` gives the off switch 3:1 against the canvas.
 
 ## Typography
 
@@ -125,7 +151,7 @@ components:
 
 **JetBrains Mono** (Google Fonts, OFL) is for data only: item IDs (`RW-0142`), dates (`2026-10-18`), timestamps, counts and pagination ranges. Never for sentences: titles, descriptions, completion notes and activity sentences stay in Satoshi; only the activity timestamp is mono.
 
-**Scale:** page title (display) 32px, section heading 20px, body 15px, label/table header 13px, mono 14px. Levels differ by size and weight, not weight alone.
+**Scale:** page title (display) 32px (26px under 640px), item title 24px, section heading 20px, detail section 16px, body 15px, label/table header 13px, mono 14px, character counters 12px mono. Levels differ by size and weight, not weight alone.
 
 **Fallback stack:** `Satoshi, ui-sans-serif, system-ui, sans-serif` and `"JetBrains Mono", ui-monospace, monospace`. The fallback exists for offline loading only.
 
@@ -211,3 +237,4 @@ Buttons and inputs use `rounded.md` (6px). Panels use `rounded.lg` (8px). Badges
 | 2026-10-21 | Mono only for IDs, dates, timestamps and counts | Mockups set sentences in mono, which hurts readability |
 | 2026-10-21 | Selected row uses a background tint, not a left border | Colored left borders read as template UI |
 | 2026-10-21 | States, toast, inline reason, keyboard model, ISO dates | Design review decisions |
+| 2026-10-21 | Contrast-safe tokens; new type steps documented | Audit measured `text-muted` on tints, `accent` on accent-tint and `error` on the selected row just under 4.5:1; the off toggle was 1.4:1. Values shifted minimally; loose CSS colors and sizes became documented tokens |
