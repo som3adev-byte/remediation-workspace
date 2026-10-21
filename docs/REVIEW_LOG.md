@@ -64,5 +64,6 @@ After the grader-style review, the remaining items from the README's priorities 
 | The per-IP limit can use the load balancer's client IP (`TRUSTED_CLIENT_IP_HEADER`), taking its last hop and ignoring anything that isn't an IP | `proxy.spec.ts`, failed before the change |
 | In-app links (Cancel, breadcrumb, sidebar) ask before leaving a form with unsaved changes | `item-form.spec.tsx`, failed before the change |
 | Inbox query times measured at 200,000 items | `apps/api/scripts/perf-*.sql`; results in Architecture §4 |
+| Fresh clone from GitHub, README only: setup, 107 tests, typecheck and the 6 browser tests green. It also showed the dev server the browser tests start was left running on port 3100; Playwright now stops it with `SIGTERM` | Ports 3100 and 4000 free after the run |
 
 **Kept, and why:** a reassigned member sees the item's full history, including the previous assignee's completion note, because they continue the same work. The per-IP login counter stays (README, Known limitations).

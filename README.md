@@ -48,19 +48,30 @@ Each org has items in every status, including overdue ones. A quick tour: sign i
 ## Tests
 
 ```bash
-pnpm test                         # all: API (real Postgres) then web
+pnpm test                         # API then web: 107 tests
 pnpm --filter @rw/api test        # API only: 74 tests on the remediation_test database
 pnpm --filter @rw/web test        # web only: 33 tests (jsdom + Testing Library)
 pnpm typecheck
-
-pnpm exec playwright install chromium   # once
-pnpm test:e2e                     # 6 browser journeys (Playwright) on the running app; reseeds the dev database
 ```
 
 - API tests run against a **real Postgres test database** as the same restricted role the app uses, so RLS and grants are exercised. Each test file truncates and builds its own fixture; files run one at a time.
 - Nothing mocks the database. The web tests mock `fetch` only.
-- The browser tests drive the real stack: sign-in and sign-out (also at phone size), start → submit → approve with history, other members' and other orgs' items refused in the UI and the API, and the CSP with no violations. They start `pnpm dev` if it isn't running.
 - The nine required tests and where each one lives: [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md).
+
+### Browser tests (end to end)
+
+After the Quick start (database up and `pnpm install`; the tests run `pnpm db:setup` themselves):
+
+```bash
+pnpm exec playwright install chromium   # once: downloads the test browser
+pnpm test:e2e                           # 6 journeys in Chromium, about a minute
+```
+
+- They drive the real stack (Next.js → NestJS → Postgres): sign-in and sign-out (also at phone size), a wrong password, start → submit → approve with history, other members' and other orgs' items refused in the UI and the API, and the CSP with no violations.
+- They **reseed the dev database** first, so local demo changes are reset.
+- They start the app if nothing is running on port 3100 and stop it afterwards, or reuse a `pnpm dev` you already have running.
+- On a failure, a trace is saved in `test-results/` (`pnpm exec playwright show-trace <file>`).
+- Checked from a fresh clone of this repository with the example `.env`.
 
 ## Session lifecycle
 
@@ -146,9 +157,10 @@ Local time (UTC+3), from the commit history. The brief allows eight hours includ
 | 14:48 to 15:12 | Final code review | 9 fixes, each with a failing-first test. 96 tests green. | 24 |
 | 15:46 to 16:55 | Strix scan 2 and fixes | Full scan (37 minutes of it waiting), open-redirect fix, Vitest upgrade, docs. 100 tests green. | 69 |
 | 17:05 to 17:40 | Grader-style review | Fresh-clone run, requirement check, the fixes in the review log section 4. 105 tests green. | 35 |
-| 17:52 to 18:12 | Hardening pass | Playwright browser tests, nonce CSP, load-balancer client IP, unsaved-changes warning on in-app links, query timing at 200,000 items (review log section 5). 107 unit and integration tests and 6 browser tests green. | 20 |
+| 17:52 to 18:09 | Hardening pass | Playwright browser tests, nonce CSP, load-balancer client IP, unsaved-changes warning on in-app links, query timing at 200,000 items (review log section 5). 107 unit and integration tests and 6 browser tests green. | 17 |
+| 18:11 to 18:20 | Fresh-clone check of the browser tests | Cloned from GitHub, followed the README: all tests green. Found that the dev server the browser tests start was left running afterwards; fixed, docs updated. | 9 |
 
-**Total: about 7 h 35 min**, within the limit. The git tag `v1-within-8h` marks the state before the hardening pass. The build rows are short because the coding agent wrote most of the code in minutes; most of my time went into planning, reviewing and checking what it produced. The walkthrough video is optional, was made separately, and is not counted.
+**Total: about 7 h 40 min**, within the limit (the rows add up to 461 minutes). The git tag `v1-within-8h` marks the state at about 7 h 15 min, before the hardening pass. The build rows are short because the coding agent wrote most of the code in minutes; most of my time went into planning, reviewing and checking what it produced. The walkthrough video is optional and not counted; it was made in the gaps between these rows.
 
 ## Security review
 

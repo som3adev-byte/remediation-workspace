@@ -39,6 +39,8 @@ Each required test from the brief (page 4, "Automated tests") mapped to the beha
 
 ## Browser tests (Playwright, `pnpm test:e2e`)
 
+The same rules checked end to end in Chromium against the real stack; setup in the README (Tests → Browser tests).
+
 | Journey | File |
 |---|---|
 | A member sees only their items and no "New item"; the session cookie is HttpOnly; sign-out sends you to sign-in and the old cookie is refused by the server (desktop and phone) | `e2e/journeys.spec.ts` |

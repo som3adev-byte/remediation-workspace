@@ -22,5 +22,7 @@ export default defineConfig({
     url: 'http://localhost:3100/login',
     reuseExistingServer: true,
     timeout: 120_000,
+    // SIGTERM lets pnpm stop the API and Next.js it started; the default kill leaves them running.
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
   },
 });
