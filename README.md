@@ -15,7 +15,8 @@ Requirements: Node 20+, pnpm (`corepack enable` picks the version pinned in `pac
 
 ```bash
 cp .env.example .env              # works as-is for local use; replace the secrets for anything else
-docker compose up -d              # Postgres 16 on localhost:55432 (older installs: docker-compose up -d)
+docker compose up -d --wait       # Postgres 16 on localhost:55432; waits until roles and databases exist
+                                  # (older installs: docker-compose up -d --wait)
 pnpm install
 pnpm db:setup                     # migrate + seed the dev database
 pnpm db:setup:test                # migrate the test database
@@ -27,6 +28,8 @@ Open http://localhost:3100.
 Ports are deliberately unusual (55432, 3100) so the project doesn't collide with a local Postgres on 5432 or another app on 3000. To use different ports, change `docker-compose.yml`, `.env` (`*_DATABASE_URL`, `WEB_ORIGIN`) and the `-p` flag in `apps/web/package.json`.
 
 `pnpm db:setup` re-seeds from scratch every time (truncate + insert), so it is safe to rerun.
+
+**Colima users:** keep the project inside your home folder. Colima only shares the home folder with Docker; elsewhere the init script can't be mounted and Postgres exits with `10-init-roles.sh: Is a directory`.
 
 ## Demo accounts
 
