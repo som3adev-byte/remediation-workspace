@@ -142,6 +142,25 @@ describe('item form', () => {
     await waitFor(() => expect(screen.getByLabelText('Title')).toHaveValue('Rotated by Omar'));
   });
 
+  it('asks before an in-app link leaves the form with unsaved changes', async () => {
+    mockApi({ 'GET /items/assignees': () => ({ status: 200, body: PEOPLE }) });
+    renderAs(manager, <ItemForm mode="create" />);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Title'), 'Half-written');
+    await user.click(screen.getByRole('link', { name: 'Cancel' }));
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Leave without saving?' });
+    expect(screen.getByRole('button', { name: 'Keep editing' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(dialog).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Title')).toHaveValue('Half-written');
+    expect(routerMock.push).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('link', { name: 'Inbox' }));
+    await user.click(await screen.findByRole('button', { name: 'Leave' }));
+    expect(routerMock.push).toHaveBeenCalledWith('/items');
+  });
+
   it('on session expiry saves the draft, and restores it only for the same user', async () => {
     const expired = vi.fn();
     window.addEventListener(SESSION_EXPIRED_EVENT, expired);

@@ -52,6 +52,7 @@ export function ItemForm(props: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   const [dirty, setDirty] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
   const reloadButton = useRef<HTMLButtonElement>(null);
 
   // After a failed submit, move focus to the first field with an error.
@@ -65,6 +66,24 @@ export function ItemForm(props: Props) {
     const onLeave = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener('beforeunload', onLeave);
     return () => window.removeEventListener('beforeunload', onLeave);
+  }, [dirty, saving]);
+
+  // The same for in-app links (inbox, breadcrumb, Cancel): ask first. Captured on the document so it
+  // runs before Next's link handler. New-tab clicks and links to the current page pass through.
+  useEffect(() => {
+    if (!dirty || saving) return;
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!link || link.target === '_blank') return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaveTo(url.pathname + url.search + url.hash);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
   }, [dirty, saving]);
 
   const load = useCallback(async () => {
@@ -244,14 +263,32 @@ export function ItemForm(props: Props) {
         </Banner>
       )}
       {confirmReplace && (
-        <ConfirmReplaceDialog
+        <ConfirmDialog
+          title="Replace your changes?"
+          body="The latest version will replace what you typed here. This can't be undone."
+          keepLabel="Keep my changes"
+          confirmLabel="Replace with latest"
           onKeep={() => {
             setConfirmReplace(false);
             reloadButton.current?.focus();
           }}
-          onReplace={() => {
+          onConfirm={() => {
             setConfirmReplace(false);
             void reloadLatest();
+          }}
+        />
+      )}
+      {leaveTo && (
+        <ConfirmDialog
+          title="Leave without saving?"
+          body="What you typed on this page will be lost."
+          keepLabel="Keep editing"
+          confirmLabel="Leave"
+          onKeep={() => setLeaveTo(null)}
+          onConfirm={() => {
+            setDirty(false);
+            setLeaveTo(null);
+            router.push(leaveTo);
           }}
         />
       )}
@@ -333,22 +370,29 @@ function FormPage({ title, crumb, children }: { title: string; crumb: string | n
   );
 }
 
-/** Asked before "Reload latest" throws away what the manager typed. Keeping is the default. */
-function ConfirmReplaceDialog({ onKeep, onReplace }: { onKeep: () => void; onReplace: () => void }) {
+/** Asks before discarding what the manager typed. Keeping it is the focused default; Escape keeps it too. */
+function ConfirmDialog(props: {
+  title: string;
+  body: string;
+  keepLabel: string;
+  confirmLabel: string;
+  onKeep: () => void;
+  onConfirm: () => void;
+}) {
   const keep = useRef<HTMLButtonElement>(null);
   useEffect(() => keep.current?.focus(), []);
   return (
-    <div className="scrim" onKeyDown={(e) => e.key === 'Escape' && onKeep()}>
-      <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="replace-title" aria-describedby="replace-body">
-        <h2 id="replace-title" className="heading">
-          Replace your changes?
+    <div className="scrim" onKeyDown={(e) => e.key === 'Escape' && props.onKeep()}>
+      <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+        <h2 id="confirm-title" className="heading">
+          {props.title}
         </h2>
-        <p id="replace-body">The latest version will replace what you typed here. This can&apos;t be undone.</p>
+        <p id="confirm-body">{props.body}</p>
         <div className="dialog-actions">
-          <Button ref={keep} variant="secondary" onClick={onKeep}>
-            Keep my changes
+          <Button ref={keep} variant="secondary" onClick={props.onKeep}>
+            {props.keepLabel}
           </Button>
-          <Button onClick={onReplace}>Replace with latest</Button>
+          <Button onClick={props.onConfirm}>{props.confirmLabel}</Button>
         </div>
       </div>
     </div>
