@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { http, login, startApp, viaProxy } from './helpers/app';
+import { persisted } from './helpers/audit';
 import { createItem, owner, resetDatabase, seedFixture, type Fixture } from './helpers/db';
 
 // Create, edit, list filters and bounds, with the audit rows each change writes.
@@ -55,6 +56,29 @@ describe('items: create, edit, list', () => {
     const res = await http(app).patch(`/items/${item.id}`).set(as(managerA)).send({ version: 1, title: 'x' });
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('invalid_transition');
+  });
+
+  it('reassignment keeps the status and writes one REASSIGNED audit row', async () => {
+    const item = await createItem(f.orgA, {
+      assigneeId: f.users.memberA.id,
+      createdById: f.users.managerA.id,
+      status: 'IN_PROGRESS',
+    });
+    const res = await http(app).patch(`/items/${item.id}`).set(as(managerA)).send({ version: 1, assigneeId: f.users.member2A.id });
+    expect(res.status).toBe(200);
+    const { item: row, actions } = await persisted(f.orgA, item.id);
+    expect(row).toMatchObject({ status: 'IN_PROGRESS', assigneeId: f.users.member2A.id, version: 2 });
+    expect(actions).toEqual(['REASSIGNED']);
+  });
+
+  it.each(['PENDING_REVIEW', 'CLOSED'] as const)('an item that is %s cannot be reassigned (409, nothing written)', async (status) => {
+    const item = await createItem(f.orgA, { assigneeId: f.users.memberA.id, createdById: f.users.managerA.id, status });
+    const res = await http(app).patch(`/items/${item.id}`).set(as(managerA)).send({ version: 1, assigneeId: f.users.member2A.id });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('invalid_transition');
+    const { item: row, actions } = await persisted(f.orgA, item.id);
+    expect(row).toMatchObject({ status, assigneeId: f.users.memberA.id, version: 1 });
+    expect(actions).toEqual([]);
   });
 
   it('rejects a disabled assignee with 422', async () => {
