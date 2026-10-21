@@ -22,7 +22,7 @@ Each required test from the brief (page 4, "Automated tests") mapped to the beha
 | Create/edit write the right audit rows; list filters, stable sort and page bounds | `apps/api/test/items.crud.spec.ts` |
 | The proxy forwards `Origin` unchanged, overwrites `X-Forwarded-For`, adds the proxy secret, relays `Set-Cookie`, drops other headers, answers 503 when the API is down | `apps/web/test/proxy.spec.ts` |
 | Inbox: skeleton rows, load error with request reference and Try again, role-specific and filtered empty states | `apps/web/test/inbox.spec.tsx` |
-| `next` redirect only accepts same-origin paths | `apps/web/test/safe-next.spec.ts` |
+| `next` redirect only accepts same-origin paths, including encoded dot-segment tricks (`/%2e%2e//host`) | `apps/web/test/safe-next.spec.ts` |
 | Double-clicking Create sends one request | `apps/web/test/item-form.spec.tsx` |
 | A burst of parallel wrong passwords cannot get past the per-email limit | `apps/api/test/security.spec.ts` |
 | Malformed client requests (bad charset, out-of-range version) answer 4xx, never 500 | `apps/api/test/security.spec.ts`, `apps/api/test/items.crud.spec.ts` |

@@ -47,7 +47,7 @@ Each org has items in every status, including overdue ones. A quick tour: sign i
 ```bash
 pnpm test                         # all: API (real Postgres) then web
 pnpm --filter @rw/api test        # API only: 70 tests on the remediation_test database
-pnpm --filter @rw/web test        # web only: 26 tests (jsdom + Testing Library)
+pnpm --filter @rw/web test        # web only: 30 tests (jsdom + Testing Library)
 pnpm typecheck
 ```
 
@@ -143,26 +143,25 @@ Times are local (UTC+3). The brief allows eight hours including documentation.
 | 2026-10-21 10:47 | 11:19 | UI review + security review | Accessibility, motion and contrast passes (WCAG AA tokens), Phosphor icons; independent security review (see below), dependency audit, fixes. |
 | 2026-10-21 14:24 | 14:45 | Strix scan | Third-party scan of the source and the running app; see Security review. |
 | 2026-10-21 14:48 | 15:03 | Final review | Two independent code reviews (a checklist-driven reviewer and a correctness review). Fixed: a race that let parallel sign-in attempts bypass the per-email limit, an out-of-range version returning 500, other body-parser errors returning 500, no-op edits bumping the version, a database hiccup clearing session cookies, unsaved completion notes on session expiry, an unbounded body in the proxy, the past-the-end inbox page, storage errors in drafts. Each fix has a test that failed first. 96 tests green (70 API + 26 web). |
+| 2026-10-21 15:46 | 16:30 | Strix full scan + fixes | Second Strix run with another model, which completed the active phase (37 min). Fixed its one code finding (encoded open redirect) with a failing-first test and upgraded Vitest to clear four dev-dependency advisories. 100 tests green (70 API + 30 web). |
 
-**Total: about 5 h 10 min**: planning about 3 h, build and documentation 09:52 to 11:19, the Strix scan about 20 min, and the final review about 20 min. Within the 8-hour limit.
+**Total: about 5 h 55 min**: planning about 3 h, build and documentation 09:52 to 11:19, the two Strix scans and their fixes about 65 min, and the final review about 20 min. Within the 8-hour limit.
 
 
 ## Security review
 
 Run after the build, against the running app and the source.
 
-- **Independent review.** A separate agent with no context from the build session audited the code and attacked the running app. It tried cross-org and same-org IDOR, mass assignment and `__proto__` keys, JWT tampering (`alg: none`, stripped and altered signatures), CSRF (missing, `null` and foreign `Origin`), direct calls that skip the proxy, proxy path traversal, open redirects through `next`, self-review, access after reassignment and after logout, account enumeration, throttling, oversized pages, XSS sinks and RLS gaps. All of these were blocked. It found no Critical, High or Medium issues.
+- **Independent review.** A separate agent with no context from the build session audited the code and attacked the running app. It tried cross-org and same-org IDOR, mass assignment and `__proto__` keys, JWT tampering (`alg: none`, stripped and altered signatures), CSRF (missing, `null` and foreign `Origin`), direct calls that skip the proxy, proxy path traversal, open redirects through `next` (one encoded variant was missed; Strix found it later, below), self-review, access after reassignment and after logout, account enumeration, throttling, oversized pages, XSS sinks and RLS gaps. All of these were blocked. It found no Critical, High or Medium issues.
 - **Fixed from that review:** an oversized request body returned `500` instead of `413` (now mapped, with a test), and a Content-Security-Policy plus production HSTS were added.
 - **Accepted and documented:** the shared per-IP login counter behind the local proxy (Known limitations).
 - **Dependencies:** `pnpm audit --prod` reported 5 advisories in transitive packages: `postcss` inside Next.js, used at build time on our own CSS, and `deepmerge-ts` inside the Prisma CLI. Neither receives user input. Both are pinned to patched versions with `pnpm` overrides, and the audit is now clean.
 - **Secrets:** the full git history was scanned. No `.env` value and no credential appears in any commit.
-- **Strix (third-party AI pentest tool), standard scan of the source and the running app.** It ran for 12 minutes before the model provider's content guardrails stopped its active-exploitation phase (subscription models block offensive security traffic). In the areas it completed, it found no issues:
-  - Static analysis (Semgrep on 84 files, Gitleaks and TruffleHog for secrets, Trivy for dependencies and config): 0 vulnerabilities, 0 secrets.
-  - Proxy SSRF, path traversal and header injection: ruled out.
-  - JWT forgery, direct API access and CSRF: ruled out.
-  - IDOR, mass assignment, SQL injection and workflow concurrency: ruled out.
-  - Live attack-surface mapping as anonymous, manager and member: no issues.
-- **Not covered by a third-party tool:** the active exploitation pass. The independent review above covered it. A full third-party run with an API key is on the list before production.
+- **Strix (third-party AI pentest tool), standard scan of the source and the running app.** The first run was stopped after 12 minutes by the model provider's content guardrails. A second run with a different model completed every phase, including active exploitation, in 37 minutes. It tested 40 areas and reported 5 findings:
+  - **Open redirect (Medium), real and fixed.** `next=/%2e%2e//evil.test` passed the checks, because the URL parser turns it into the path `//evil.test`, which a browser treats as another site. After sign-in the user would leave the app. `safeNext` now rejects any parsed path that starts with `//`. Four encoded variants were added to `safe-next.spec.ts`; they failed before the fix.
+  - **Four advisories in Vitest 3.2.7 and its `tinypool` and `@vitest/mocker` packages (2 High, 2 Medium).** Test-only: no production path loads them, and exploiting them needs an exposed Vitest dev server. Upgraded to Vitest 4.1.11, which removes all three packages from the lockfile. All 100 tests pass on the new version.
+  - **Ruled out with live requests:** cross-org and same-org IDOR, mass assignment, SQL injection on every input, stored XSS, JWT tampering, session replay after logout, CSRF on every write, proxy path traversal and header injection, workflow and assignment races, error-based information disclosure.
+  - Static analysis (Semgrep, Gitleaks, TruffleHog): 0 issues, 0 secrets.
 
 ## Final code review
 
@@ -210,6 +209,7 @@ I am responsible for everything here. How I checked the generated work:
 - The straightforward way to write the transitions, checking permissions in code *before* the UPDATE, was rejected. With that check in place, deleting a WHERE condition would change nothing and the guard-removal check would prove nothing. The UPDATE's own WHERE makes the decision, and the code only explains a miss afterwards.
 - The generated mockups set sentences in a monospace font and marked the selected row with a colored left border. I kept monospace for ids, dates and counts only, and used a background tint for selection.
 - The final review found a race in the generated login throttle (parallel attempts slipped past the limit). The original tests only sent attempts one at a time, so they could not see it. I reproduced it with a parallel test before fixing it (see Final code review).
+- The independent security review tested open redirects through `next` and passed them; Strix later found an encoded variant (`/%2e%2e//host`) that both the review and the tests missed. I reproduced it, added the cases as failing tests and fixed it at the parsed path.
 - One final-review finding was wrong (it said `.gitignore` lists agent tooling); I checked the tracked file and rejected it.
 - A reviewer suggested dropping the per-IP login limit because it is shared locally. I kept it and documented the limitation, since it is the only limit that slows one client trying many emails.
 

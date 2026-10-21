@@ -37,6 +37,7 @@ For the next engineer. Read the README's quick start and session lifecycle first
 ## Gotchas
 
 - **Rebuild `packages/shared` after changing it** (`pnpm build:shared`). The root `dev`, `test` and `typecheck` scripts do it for you; running an app's script directly does not.
+- **Validate redirects on the parsed URL, not the raw string.** `new URL` resolves `/%2e%2e//host` to the path `//host`; `safeNext` checks the parsed path for that reason.
 - **NestJS constructors use explicit `@Inject(Class)`.** Vitest compiles with esbuild, which doesn't emit decorator metadata, so implicit injection breaks only in tests.
 - **The seed and test fixtures run as the owner role, but RLS is `FORCE`d,** so they also set `app.org_id` (`inOrgTransaction`) when writing items and audit rows.
 - **Two database roles.** `app_owner` runs migrations, seed and test resets. `app_user` is the runtime role (no ownership, no `BYPASSRLS`, no `DELETE` on items, append-only audit). Default privileges grant `app_user` SELECT/INSERT/UPDATE on new tables; anything else must be granted in the migration.
@@ -58,4 +59,4 @@ The README's "Known limitations" and "Next three priorities" are the honest list
 - The per-IP login counter is shared behind the local proxy. Production needs the load balancer's client IP.
 - The Content-Security-Policy still allows inline scripts. A per-request nonce would remove that.
 - There are no automated browser end-to-end tests. The main flows were checked by hand.
-- A full third-party scan (Strix) with an API key. The subscription run was stopped by the provider's guardrails before its active phase.
+- Keep dev dependencies current: the Strix scan flagged advisories in the test runner (Vitest), fixed by upgrading.
