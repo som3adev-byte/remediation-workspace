@@ -20,6 +20,10 @@ describe('safeNext', () => {
     'javascript:alert(1)',
     'items',
     '/login?next=/items',
+    '/%2e%2e//evil.test',
+    '/%2e%2e///evil.test',
+    '/%2e%2e/\\\\evil.test',
+    '/./%2e%2e//evil.test',
   ])('falls back to /items for %s', (raw) => {
     expect(safeNext(raw, ORIGIN)).toBe('/items');
   });
