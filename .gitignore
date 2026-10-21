@@ -8,3 +8,6 @@ coverage/
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# local browser-tool snapshots
+.playwright-cli/
