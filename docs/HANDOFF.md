@@ -56,8 +56,7 @@ For the next engineer. Read the README's quick start and session lifecycle first
 ## Open items
 
 The README's "Known limitations" and "Next three priorities" are the honest list of what is missing. The most important:
-- The per-IP login counter is shared behind the local proxy. Production needs the load balancer's client IP.
-- The Content-Security-Policy still allows inline scripts. A per-request nonce would remove that.
-- There are no automated browser end-to-end tests. The main flows were checked by hand.
+- The per-IP login counter is shared unless `TRUSTED_CLIENT_IP_HEADER` names the load balancer's client-IP header. Set it in production.
+- Inbox counts and deep OFFSET pages grow with an org's size; keyset pagination is next (Architecture §4 has the numbers).
 - Expired `sessions` rows are never deleted; add a scheduled cleanup.
 - Keep dev dependencies current: the Strix scan flagged advisories in the test runner (Vitest), fixed by upgrading.

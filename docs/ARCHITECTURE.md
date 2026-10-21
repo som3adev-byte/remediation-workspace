@@ -125,7 +125,7 @@ The first pages are well under a millisecond. The two costs that grow with an or
 2. **Keyset pagination** (`WHERE (due_date, id) > ($last)`) instead of OFFSET for deep pages. Cap or estimate counts for very large orgs, or cache them briefly.
 3. **Fewer item indexes, if writes become the bottleneck.** Items have four inbox indexes; each update maintains them. Measure write latency before merging or dropping any.
 4. **A read replica** for inbox and history reads, if the primary is CPU-bound by reads. Writes and the session check stay on the primary.
-5. **Several API instances** behind a load balancer. The API is stateless apart from Postgres. The per-IP login limit then needs the real client IP from the balancer (see Known limitations in the README).
+5. **Several API instances** behind a load balancer. The API is stateless apart from Postgres. Set `TRUSTED_CLIENT_IP_HEADER` so the per-IP login limit sees the client IP the balancer reports (README, Known limitations).
 6. **Partition `audit_events`** by time if it grows much faster than items. It is append-only, so this is easy.
 
 Sharding by org is not needed at this size; `org_id` leads every index, so it stays possible later.

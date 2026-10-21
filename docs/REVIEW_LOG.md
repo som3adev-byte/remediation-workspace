@@ -53,4 +53,16 @@ A last pass as a hiring reviewer would do it: a fresh clone following the README
 | The time table did not cover every commit and its total did not add up | Rebuilt from commit times | README, Time spent |
 | The README was too long | Review detail moved to this file | |
 
+## 5. Hardening pass
+
+After the grader-style review, the remaining items from the README's priorities that fit in the time:
+
+| Change | Proof |
+|---|---|
+| Browser tests with Playwright on the real stack: sign-in and sign-out (desktop and phone), start → submit → approve with history, other members' and other orgs' items refused in the UI and the API | `e2e/journeys.spec.ts`, 3 consecutive green runs, then green against a production build |
+| Nonce-based CSP: scripts need this response's nonce; `'unsafe-inline'` is gone from `script-src` | `e2e/csp.spec.ts` failed before the change; passes in dev and in a production build with no CSP violations |
+| The per-IP limit can use the load balancer's client IP (`TRUSTED_CLIENT_IP_HEADER`), taking its last hop and ignoring anything that isn't an IP | `proxy.spec.ts`, failed before the change |
+| In-app links (Cancel, breadcrumb, sidebar) ask before leaving a form with unsaved changes | `item-form.spec.tsx`, failed before the change |
+| Inbox query times measured at 200,000 items | `apps/api/scripts/perf-*.sql`; results in Architecture §4 |
+
 **Kept, and why:** a reassigned member sees the item's full history, including the previous assignee's completion note, because they continue the same work. The per-IP login counter stays (README, Known limitations).

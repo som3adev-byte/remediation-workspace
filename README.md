@@ -50,12 +50,16 @@ Each org has items in every status, including overdue ones. A quick tour: sign i
 ```bash
 pnpm test                         # all: API (real Postgres) then web
 pnpm --filter @rw/api test        # API only: 74 tests on the remediation_test database
-pnpm --filter @rw/web test        # web only: 31 tests (jsdom + Testing Library)
+pnpm --filter @rw/web test        # web only: 33 tests (jsdom + Testing Library)
 pnpm typecheck
+
+pnpm exec playwright install chromium   # once
+pnpm test:e2e                     # 6 browser journeys (Playwright) on the running app; reseeds the dev database
 ```
 
 - API tests run against a **real Postgres test database** as the same restricted role the app uses, so RLS and grants are exercised. Each test file truncates and builds its own fixture; files run one at a time.
 - Nothing mocks the database. The web tests mock `fetch` only.
+- The browser tests drive the real stack: sign-in and sign-out (also at phone size), start → submit → approve with history, other members' and other orgs' items refused in the UI and the API, and the CSP with no violations. They start `pnpm dev` if it isn't running.
 - The nine required tests and where each one lives: [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md).
 
 ## Session lifecycle
@@ -101,19 +105,18 @@ pnpm typecheck
 
 ## Known limitations
 
-- **Per-IP login limit is shared locally.** Next.js route handlers have no trustworthy client address, so the proxy sends `127.0.0.1` for everyone and all local users share one 20-per-15-minutes counter: 20 failed sign-ins from anyone lock every local user out for 15 minutes. In production the load balancer's client-IP header must be used instead. The per-email limit is unaffected.
+- **Per-IP login limit is shared locally.** Next.js route handlers have no trustworthy client address, and a browser-sent `X-Forwarded-For` can be forged, so by default all sign-ins count as one address: 20 failed sign-ins from anyone lock every local user out for 15 minutes. Behind a load balancer, set `TRUSTED_CLIENT_IP_HEADER` and the proxy forwards the client IP the balancer reports. The per-email limit is unaffected.
 - **Per-email lockout can be triggered by someone else**: 5 wrong passwords lock that email for 15 minutes. Accepted tradeoff for a demo; production would add CAPTCHA or progressive delays.
-- **The Content-Security-Policy allows inline scripts.** It blocks external script hosts, cross-origin requests, framing, plugins, `<base>` and cross-origin form posts, but Next.js injects inline bootstrap scripts, so `script-src` has `'unsafe-inline'` until a per-request nonce is added. Fonts load from Fontshare and Google Fonts (allowed by name). HSTS is sent in production builds only.
+- **The Content-Security-Policy allows inline styles.** Scripts run only with a per-request nonce (no `'unsafe-inline'`), but `style-src` keeps `'unsafe-inline'` for React style attributes. Fonts load from Fontshare and Google Fonts (allowed by name). HSTS is sent in production builds only.
 - **Item numbers (`RW-0013`) come from one global sequence**, so the gaps hint at how many items other orgs created. Per-org numbering would fix that.
 - **OFFSET pagination and an exact count** on every list request. Fine at this size; see Architecture §5 for keyset pagination.
 - **Activity shows the newest 100 events** per item, with no paging.
 - **Overdue flips at 00:00 UTC**, which is 03:00 for a UTC+3 user.
 - **Sign-in and sign-out are not audited**; only item events are.
 - **Expired `sessions` rows are never deleted.** They are harmless (checked by expiry) but grow with every sign-in; a nightly cleanup job would fix it.
-- **Leaving the edit form through an in-app link doesn't warn** about unsaved changes; only closing or reloading the tab does.
 - **Changing `JWT_SECRET` signs everyone out** (no key ids or rotation window).
-- **Frontend tests are component tests** with mocked `fetch`. The full browser flows (sign in, act, session expiry with draft restore, phone layout) were checked by hand in Chrome, not by an automated end-to-end test.
-- Not tested beyond a single machine; no load test was run.
+- **Session expiry with draft restore has no browser test**; component tests cover it, and it was checked by hand in Chrome.
+- **No HTTP load test.** Query times were measured at 200,000 items (Architecture §4), but not 100 updates/second through the API.
 
 ## Out of scope, and how I would add it
 
@@ -124,9 +127,9 @@ pnpm typecheck
 
 ## Next three priorities with another day
 
-1. **Automated browser tests** (Playwright) for the three journeys checked by hand: member start → submit, manager approve / request changes, and session expiry with draft restore, plus a phone-size run.
-2. **Production security gaps:** a nonce-based CSP (no `'unsafe-inline'`), the real client IP from the load balancer for the per-IP limit, and audit events for sign-in, sign-out and failed sign-in.
-3. **Per-org item numbers and keyset pagination**, which removes the cross-org hint in item numbers and keeps deep pages fast for large orgs.
+1. **Keyset pagination and a capped count**: the two inbox costs that grow with an org's size (measured: 16 ms count and 38 ms for page 2,000 at 50,000 items).
+2. **A load test of the write path**: bursts of 100 updates/second through the API, watching lock waits, `409` rates and pool wait time.
+3. **Account security events**: audit rows for sign-in, sign-out and failed sign-in, per-org item numbers, and a cleanup job for expired sessions.
 
 ## Time spent
 
@@ -143,8 +146,9 @@ Local time (UTC+3), from the commit history. The brief allows eight hours includ
 | 14:48 to 15:12 | Final code review | 9 fixes, each with a failing-first test. 96 tests green. | 24 |
 | 15:46 to 16:55 | Strix scan 2 and fixes | Full scan (37 minutes of it waiting), open-redirect fix, Vitest upgrade, docs. 100 tests green. | 69 |
 | 17:05 to 17:40 | Grader-style review | Fresh-clone run, requirement check, the fixes in the review log section 4. 105 tests green. | 35 |
+| 17:52 to 18:12 | Hardening pass | Playwright browser tests, nonce CSP, load-balancer client IP, unsaved-changes warning on in-app links, query timing at 200,000 items (review log section 5). 107 unit and integration tests and 6 browser tests green. | 20 |
 
-**Total: about 7 h 15 min**, within the limit. The build rows are short because the coding agent wrote most of the code in minutes; most of my time went into planning, reviewing and checking what it produced. The walkthrough video is optional, was made separately, and is not counted.
+**Total: about 7 h 35 min**, within the limit. The git tag `v1-within-8h` marks the state before the hardening pass. The build rows are short because the coding agent wrote most of the code in minutes; most of my time went into planning, reviewing and checking what it produced. The walkthrough video is optional, was made separately, and is not counted.
 
 ## Security review
 
@@ -157,6 +161,7 @@ Run after the build, against the source and the running app. Details and every f
 | Static analysis and secrets | Semgrep, Gitleaks, TruffleHog (run by Strix); a manual scan of the git history | 0 issues, 0 secrets |
 | Dependencies | `pnpm audit --prod`, Trivy | 5 transitive production advisories pinned to patched versions; clean now |
 | Code reviews | A pre-landing checklist review, a correctness-only review, and a grader-style review with a fresh clone | 11 bug fixes, each with a test that failed first; 4 missing tests added; 3 indexes, checked with `EXPLAIN` |
+| Browser tests | Playwright on the real stack, in dev and against a production build | Sign-in, workflow, permissions, sign-out and CSP journeys green; no CSP violations |
 | Regression proof | Removing each guard and running the suite | Every guard is caught by a test (table at the end) |
 
 ## How AI was used

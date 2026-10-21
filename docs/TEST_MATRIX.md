@@ -34,6 +34,18 @@ Each required test from the brief (page 4, "Automated tests") mapped to the beha
 | A database outage keeps the session cookie; a rejected session clears it | `apps/api/test/auth.logout.spec.ts` |
 | Reassignment keeps the status; items under review or closed cannot be reassigned, and nothing is written | `apps/api/test/items.crud.spec.ts` |
 | "Reload latest" asks before replacing typed changes | `apps/web/test/item-form.spec.tsx` |
+| In-app links ask before leaving a form with unsaved changes | `apps/web/test/item-form.spec.tsx` |
+| The per-IP limit uses the load balancer's client IP only when configured, and only if it is an IP | `apps/web/test/proxy.spec.ts` |
+
+## Browser tests (Playwright, `pnpm test:e2e`)
+
+| Journey | File |
+|---|---|
+| A member sees only their items and no "New item"; the session cookie is HttpOnly; sign-out sends you to sign-in and the old cookie is refused by the server (desktop and phone) | `e2e/journeys.spec.ts` |
+| A wrong password shows the generic error and keeps the email | `e2e/journeys.spec.ts` |
+| Member starts and submits, manager approves; the item is Closed with no Edit, and the history shows both steps | `e2e/journeys.spec.ts` |
+| Another member's item and another org's item say "not available", and the API refuses the action (404) | `e2e/journeys.spec.ts` |
+| Pages run under a nonce CSP without `'unsafe-inline'` scripts, with a new nonce per response and no violations | `e2e/csp.spec.ts` |
 
 ## Verifying the tests catch regressions
 
