@@ -28,7 +28,7 @@
   --shadow: 0 1px 2px rgba(22, 24, 29, 0.06);
   --shadow-modal: 0 8px 24px rgba(22, 24, 29, 0.12);
 
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   color-scheme: light;
 }
 
@@ -190,17 +190,10 @@ textarea {
   background: var(--primary);
   color: var(--on-primary);
 }
-.btn-primary:hover {
-  background: var(--primary-hover);
-}
 .btn-secondary {
   background: var(--surface);
   color: var(--text);
   border-color: var(--border);
-}
-.btn-secondary:hover {
-  background: var(--row-hover);
-  border-color: #d3d0c9;
 }
 .btn-sm {
   min-height: 32px;
@@ -305,9 +298,6 @@ textarea {
   border-radius: var(--r-md);
   transition: border-color 150ms ease-out;
 }
-.input:hover {
-  border-color: #d3d0c9;
-}
 .input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 0;
@@ -367,10 +357,6 @@ textarea {
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
-}
-.input-action:hover {
-  background: var(--neutral-tint);
-  color: var(--text);
 }
 .sr-only {
   position: absolute;
@@ -448,16 +434,24 @@ textarea {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-modal);
   font-weight: 500;
-  animation: toast-in 200ms var(--ease-out);
-}
-@keyframes toast-in {
-  from {
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+  @starting-style {
     opacity: 0;
     transform: translateY(8px);
   }
 }
+.toast.is-leaving {
+  opacity: 0;
+  transition-duration: 150ms;
+}
 
 .scrim {
+  transition: opacity 200ms var(--ease-out);
+  @starting-style {
+    opacity: 0;
+  }
   overscroll-behavior: contain;
   position: fixed;
   inset: 0;
@@ -468,6 +462,13 @@ textarea {
   background: rgba(22, 24, 29, 0.4);
 }
 .dialog {
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.98);
+  }
   width: min(420px, 100%);
   display: flex;
   flex-direction: column;
@@ -623,9 +624,6 @@ textarea {
   cursor: pointer;
   text-align: left;
 }
-.signout:hover {
-  background: var(--neutral-tint);
-}
 .topbar {
   display: none;
 }
@@ -768,7 +766,7 @@ textarea {
 .table-head,
 .row {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) 176px 132px;
+  grid-template-columns: 72px minmax(0, 1fr) 156px 124px;
   align-items: center;
   gap: 16px;
   padding: 0 16px;
@@ -796,9 +794,6 @@ textarea {
   padding-bottom: 8px;
   color: var(--text);
   transition: background-color 150ms ease-out;
-}
-.row:hover {
-  background: var(--row-hover);
 }
 .row.is-selected {
   background: var(--accent-tint);
@@ -1028,6 +1023,13 @@ textarea {
     border-bottom: 1px solid var(--border);
   }
   .mobile-menu {
+    transition:
+      opacity 150ms var(--ease-out),
+      transform 150ms var(--ease-out);
+    @starting-style {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
     position: absolute;
     top: 56px;
     left: 0;
@@ -1165,4 +1167,32 @@ textarea {
     animation-name: appear !important;
     animation-duration: 150ms !important;
   }
+}
+
+/* Hover only where a real pointer hovers; on touch a tap would leave it stuck. */
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: var(--primary-hover);
+  }
+  .btn-secondary:hover {
+    background: var(--row-hover);
+    border-color: #d3d0c9;
+  }
+  .row:hover {
+    background: var(--row-hover);
+  }
+  .row.is-selected:hover {
+    background: var(--accent-tint);
+  }
+  .signout:hover,
+  .input-action:hover {
+    background: var(--neutral-tint);
+    color: var(--text);
+  }
+  .input:hover {
+    border-color: #d3d0c9;
+  }
+}
+.row:active {
+  background: var(--accent-tint);
 }
