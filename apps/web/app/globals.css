@@ -308,6 +308,42 @@ textarea {
   color: var(--error);
 }
 
+.input-with-action {
+  position: relative;
+}
+.input-with-action .input {
+  padding-right: 88px;
+}
+.input-action {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.input-action:hover {
+  background: var(--neutral-tint);
+  color: var(--text);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 /* ---------- Banners, toast, dialog ---------- */
 .banner {
   display: flex;

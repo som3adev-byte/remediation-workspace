@@ -7,7 +7,7 @@ import { api, ApiFailure } from '@/lib/api';
 import { keepOnlyDraftsOf } from '@/lib/drafts';
 import { safeNext } from '@/lib/safe-next';
 import type { Me } from '@/lib/types';
-import { ShieldIcon } from './icons';
+import { EyeIcon, EyeOffIcon, ShieldIcon } from './icons';
 import { Banner, Button, Field } from './ui';
 
 export function LoginForm() {
@@ -18,6 +18,7 @@ export function LoginForm() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [error, setError] = useState<ApiFailure | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -74,14 +75,27 @@ export function LoginForm() {
         </Field>
         <Field label="Password" error={fields.password}>
           {(p) => (
-            <input
-              {...p}
-              className="input"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="input-with-action">
+              <input
+                {...p}
+                className="input"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="input-action"
+                aria-pressed={showPassword}
+                aria-controls={p.id}
+                onClick={() => setShowPassword((v) => !v)}
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                <span>{showPassword ? 'Hide' : 'Show'}</span>
+                <span className="sr-only"> password</span>
+              </button>
+            </div>
           )}
         </Field>
         <Button type="submit" loading={busy} loadingLabel="Signing in…" className="btn-block">
