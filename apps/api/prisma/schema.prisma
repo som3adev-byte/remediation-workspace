@@ -1,0 +1,142 @@
+// Every id and foreign key is a native uuid and every column is snake_case, so the
+// hand-written row-level-security SQL in migrations/*_rls matches real column names and types.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Runtime connection (app_user): owns nothing, no BYPASSRLS, subject to RLS.
+  url       = env("DATABASE_URL")
+  // Migrations and seed (app_owner).
+  directUrl = env("MIGRATION_DATABASE_URL")
+}
+
+enum Role {
+  MANAGER
+  MEMBER
+}
+
+enum ItemStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING_REVIEW
+  CLOSED
+}
+
+enum AuditAction {
+  CREATED
+  EDITED
+  REASSIGNED
+  STARTED
+  SUBMITTED
+  APPROVED
+  CHANGES_REQUESTED
+}
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  users User[]
+  items Item[]
+
+  @@map("organizations")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  orgId        String    @map("org_id") @db.Uuid
+  // Stored trimmed and lowercased; the unique index makes lookups exact.
+  email        String    @unique
+  name         String
+  role         Role
+  passwordHash String    @map("password_hash")
+  disabledAt   DateTime? @map("disabled_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  org           Organization @relation(fields: [orgId], references: [id])
+  sessions      Session[]
+  assignedItems Item[]       @relation("assignee")
+  createdItems  Item[]       @relation("creator")
+  auditEvents   AuditEvent[]
+
+  @@index([orgId, role])
+  @@map("users")
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  // Absolute cap (8h). Tokens are reissued within it but never extend it.
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Item {
+  id             String     @id @default(uuid()) @db.Uuid
+  // Human reference shown as RW-0001.
+  ref            Int        @unique @default(autoincrement())
+  orgId          String     @map("org_id") @db.Uuid
+  title          String
+  description    String
+  assigneeId     String     @map("assignee_id") @db.Uuid
+  // Calendar date, no time zone. Overdue = due_date < current UTC date and status <> CLOSED.
+  dueDate        DateTime   @map("due_date") @db.Date
+  status         ItemStatus @default(OPEN)
+  completionNote String?    @map("completion_note")
+  // Optimistic concurrency: every mutation requires the client's version and increments it.
+  version        Int        @default(1)
+  createdById    String     @map("created_by_id") @db.Uuid
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  org         Organization @relation(fields: [orgId], references: [id])
+  assignee    User         @relation("assignee", fields: [assigneeId], references: [id])
+  createdBy   User         @relation("creator", fields: [createdById], references: [id])
+  auditEvents AuditEvent[]
+
+  // Manager inbox: org + optional status, ordered by due date then id.
+  @@index([orgId, status, dueDate, id])
+  // Member inbox: org + assignee + optional status.
+  @@index([orgId, assigneeId, status, dueDate, id])
+  @@map("items")
+}
+
+model AuditEvent {
+  id        String      @id @default(uuid()) @db.Uuid
+  // Denormalized so the RLS policy can filter audit rows by org without a join.
+  orgId     String      @map("org_id") @db.Uuid
+  itemId    String      @map("item_id") @db.Uuid
+  actorId   String      @map("actor_id") @db.Uuid
+  action    AuditAction
+  // What changed: { field: { from, to } } for edits, plus note/reason for transitions.
+  changes   Json        @default("{}")
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  item  Item @relation(fields: [itemId], references: [id])
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([orgId, itemId, createdAt])
+  @@map("audit_events")
+}
+
+model LoginAttempt {
+  id        BigInt   @id @default(autoincrement())
+  // Normalized (trimmed, lowercased) submitted email, whether or not a user exists.
+  emailKey  String   @map("email_key")
+  ip        String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([emailKey, createdAt])
+  @@index([ip, createdAt])
+  @@map("login_attempts")
+}
