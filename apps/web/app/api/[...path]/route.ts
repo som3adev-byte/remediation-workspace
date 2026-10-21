@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 import type { NextRequest } from 'next/server';
 
 /**
@@ -40,10 +41,18 @@ async function readCapped(req: NextRequest): Promise<Uint8Array<ArrayBuffer> | n
   return out;
 }
 
-// Route handlers have no trustworthy socket address. Locally every request comes from
-// this machine, so the API's per-IP login limit is shared (documented in the README).
-// Behind a real load balancer, read the client IP from the header it sets.
-const CLIENT_IP = '127.0.0.1';
+/**
+ * The client IP for the API's per-IP login limit. Route handlers have no trustworthy socket
+ * address, and any X-Forwarded-For from the browser can be forged, so by default every request
+ * counts as this machine (locally that is true; the limit is shared, see the README).
+ * In production set TRUSTED_CLIENT_IP_HEADER to the header your load balancer sets. Its last
+ * entry is the address the balancer saw; anything before it came from the client.
+ */
+function clientIp(req: NextRequest): string {
+  const header = process.env.TRUSTED_CLIENT_IP_HEADER;
+  const reported = header ? req.headers.get(header)?.split(',').pop()?.trim() : undefined;
+  return reported && isIP(reported) ? reported : '127.0.0.1';
+}
 
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
@@ -55,7 +64,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     const value = req.headers.get(name);
     if (value) headers.set(name, value);
   }
-  headers.set('x-forwarded-for', CLIENT_IP);
+  headers.set('x-forwarded-for', clientIp(req));
   headers.set('x-internal-proxy-secret', process.env.PROXY_SECRET ?? '');
 
   let payload: Uint8Array<ArrayBuffer> | undefined;

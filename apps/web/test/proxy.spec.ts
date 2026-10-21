@@ -41,6 +41,25 @@ describe('API proxy route', () => {
     expect(new TextDecoder().decode(sent.body)).toBe('{"email":"a@b.c"}');
   });
 
+  it('behind a configured load balancer, forwards the client IP it reports (its last hop)', async () => {
+    process.env.TRUSTED_CLIENT_IP_HEADER = 'x-forwarded-for';
+    try {
+      const login = (xff: string) =>
+        POST(
+          new NextRequest('http://localhost:3100/api/auth/login', { method: 'POST', headers: { 'x-forwarded-for': xff }, body: '{}' }),
+          ctx(['auth', 'login']),
+        );
+      // The client can prepend anything; the balancer appends the address it saw.
+      await login('6.6.6.6, 203.0.113.7');
+      expect(sent.headers.get('x-forwarded-for')).toBe('203.0.113.7');
+      // Not an IP: fall back rather than pass junk to the limiter.
+      await login('not-an-ip');
+      expect(sent.headers.get('x-forwarded-for')).toBe('127.0.0.1');
+    } finally {
+      delete process.env.TRUSTED_CLIENT_IP_HEADER;
+    }
+  });
+
   it('relays Set-Cookie and the request id, and keeps the query string', async () => {
     const res = await GET(new NextRequest('http://localhost:3100/api/items?status=OPEN&page=2'), ctx(['items']));
     expect(sent.url).toBe('http://127.0.0.1:4000/items?status=OPEN&page=2');
