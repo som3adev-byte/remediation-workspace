@@ -34,6 +34,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     ) {
       return [503, { code: 'service_unavailable', message: 'The service is temporarily unavailable. Try again.' }];
     }
+    // express.json() rejects oversized bodies before Nest sees them; its error is not an HttpException.
+    if (typeof err === 'object' && err !== null && (err as { type?: unknown }).type === 'entity.too.large') {
+      return [413, { code: 'validation_failed', message: 'Request body too large.' }];
+    }
     if (err instanceof HttpException) {
       const status = err.getStatus();
       if (status === 404) return [404, { code: 'not_found', message: 'Not found.' }];

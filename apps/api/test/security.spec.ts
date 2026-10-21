@@ -66,4 +66,14 @@ describe('origin, proxy and throttling', () => {
     expect(res.status).toBe(400);
     expect(JSON.stringify(res.body)).not.toMatch(/at \w+ \(|node_modules|SyntaxError/);
   });
+
+  it('rejects an oversized body with 413, not 500', async () => {
+    const cookie = await login(app, f.users.managerA.email);
+    const res = await http(app)
+      .post('/items')
+      .set({ ...viaProxy(), Cookie: cookie })
+      .send({ title: 'x', description: 'a'.repeat(40_000), assigneeId: f.users.memberA.id, dueDate: '2099-01-01' });
+    expect(res.status).toBe(413);
+    expect(res.body.code).toBe('validation_failed');
+  });
 });

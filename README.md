@@ -103,7 +103,7 @@ pnpm typecheck
 
 - **Per-IP login limit is shared locally.** Next.js route handlers have no trustworthy client address, so the proxy sends `127.0.0.1` for everyone and all local users share one 20-per-15-minutes counter. In production the load balancer's client-IP header must be used instead. The per-email limit is unaffected.
 - **Per-email lockout can be triggered by someone else**: 5 wrong passwords lock that email for 15 minutes. Accepted tradeoff for a demo; production would add CAPTCHA or progressive delays.
-- **No Content-Security-Policy yet.** Other security headers are set (`X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`). Fonts load from Fontshare and Google Fonts; self-hosting them would allow a strict CSP.
+- **The Content-Security-Policy allows inline scripts.** It blocks external script hosts, cross-origin requests, framing, plugins, `<base>` and cross-origin form posts, but Next.js injects inline bootstrap scripts, so `script-src` has `'unsafe-inline'` until a per-request nonce is added. Fonts load from Fontshare and Google Fonts (allowed by name). HSTS is sent in production builds only.
 - **Item numbers (`RW-0013`) come from one global sequence**, so the gaps hint at how many items other orgs created. Per-org numbering would fix that.
 - **OFFSET pagination and an exact count** on every list request. Fine at this size; see Architecture §5 for keyset pagination.
 - **Activity shows the newest 100 events** per item, with no paging.
@@ -123,7 +123,7 @@ pnpm typecheck
 ## Next three priorities with another day
 
 1. **Automated browser tests** (Playwright) for the three journeys checked by hand: member start → submit, manager approve / request changes, and session expiry with draft restore, plus a phone-size run.
-2. **Production security gaps:** a strict CSP with self-hosted fonts, the real client IP from the load balancer for the per-IP limit, and audit events for sign-in, sign-out and failed sign-in.
+2. **Production security gaps:** a nonce-based CSP (no `'unsafe-inline'`), the real client IP from the load balancer for the per-IP limit, and audit events for sign-in, sign-out and failed sign-in.
 3. **Per-org item numbers and keyset pagination**, which removes the cross-org hint in item numbers and keeps deep pages fast for large orgs.
 
 ## Time spent
@@ -139,9 +139,20 @@ Times are local (UTC+3). The brief allows eight hours including documentation.
 | 2026-10-21 10:14 | 10:20 | Workflow | four transitions as one guarded UPDATE each (org, version, status, assignee rule); 404/403/409 explained after a miss; completion note kept on request-changes, reason in the audit row; tests 7 and 8 incl. concurrent approvals; guard-removal check. 65 API tests green. |
 | 2026-10-21 10:20 | 10:35 | UI | Next.js proxy route, login, inbox split view with filters/pagination/all states, detail with actions and activity, item form with 409 banner and draft restore, session-expired dialog, responsive layouts. Web dev port moved to 3100 (3000 was taken locally). 87 tests green (65 API + 22 web). |
 | 2026-10-21 10:36 | 10:44 | Review | Walked through the app as manager and member; added a show/hide password toggle; fixed a hydration warning caused by a browser extension. |
-| 2026-10-21 10:44 | (this commit) | Documentation | This README, the architecture note and the handoff. |
+| 2026-10-21 10:44 | 10:47 | Documentation | This README, the architecture note and the handoff. |
+| 2026-10-21 10:47 | 11:19 | UI review + security review | Accessibility, motion and contrast passes (WCAG AA tokens), Phosphor icons; independent security review (see below), dependency audit, fixes. |
 
-Still planned after this commit: an automated security scan (Strix) with fixes, and a UI polish pass.
+
+## Security review
+
+Run after the build, against the running app and the source.
+
+- **Independent review.** A separate agent with no context from the build session audited the code and attacked the running app. It tried cross-org and same-org IDOR, mass assignment and `__proto__` keys, JWT tampering (`alg: none`, stripped and altered signatures), CSRF (missing, `null` and foreign `Origin`), direct calls that skip the proxy, proxy path traversal, open redirects through `next`, self-review, access after reassignment and after logout, account enumeration, throttling, oversized pages, XSS sinks and RLS gaps. All of these were blocked. It found no Critical, High or Medium issues.
+- **Fixed from that review:** an oversized request body returned `500` instead of `413` (now mapped, with a test), and a Content-Security-Policy plus production HSTS were added.
+- **Accepted and documented:** the shared per-IP login counter behind the local proxy (Known limitations).
+- **Dependencies:** `pnpm audit --prod` reported 5 advisories in transitive packages: `postcss` inside Next.js, used at build time on our own CSS, and `deepmerge-ts` inside the Prisma CLI. Neither receives user input. Both are pinned to patched versions with `pnpm` overrides, and the audit is now clean.
+- **Secrets:** the full git history was scanned. No `.env` value and no credential appears in any commit.
+- **Why not Strix:** I intended to run the Strix scanner, but it needs a separately billed model API key. The independent agent review above replaced it; it is not an external tool, and I'd add a third-party scan before production.
 
 ## How AI was used
 
